@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: lab-api}
+  template:
+    metadata:
+      labels: {app: lab-api}
+    spec:
+      containers:
+        - name: api
+          image: lab-api:latest
+          ports: [{containerPort: 8000}]
+          livenessProbe: {httpGet: {path: /health, port: 8000}, initialDelaySeconds: 5, periodSeconds: 10}
+          readinessProbe: {httpGet: {path: /ready, port: 8000}, initialDelaySeconds: 5, periodSeconds: 10}
+          env:
+            - {name: DATABASE_URL, value: postgresql://lab:lab@db:5432/lab}
+            - {name: REDIS_URL, value: redis://cache:6379/0}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-api
+spec:
+  selector: {app: lab-api}
+  ports: [{port: 80, targetPort: 8000}]

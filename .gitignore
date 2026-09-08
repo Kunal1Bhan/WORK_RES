@@ -1,0 +1,14 @@
+.DS_STORE
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# Local runtime artifacts
+lab.db
+test_lab.db
+*.jsonl
+!benchmarks/sample-requests.jsonl
