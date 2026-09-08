@@ -157,6 +157,86 @@ python model-serving/serve.py --port 8100
 
 ---
 
+## 📸 Screenshots
+
+| API docs (Swagger) | Create order (201) | Order list |
+|---|---|---|
+| ![docs](docs/screenshots/01-docs-home.png) | ![create](docs/screenshots/02-create-order.png) | ![list](docs/screenshots/03-order-list.png) |
+| Prometheus targets | Grafana login | |
+| ![prom](docs/screenshots/04-prometheus-targets.png) | ![grafana](docs/screenshots/05-grafana-login.png) | |
+
+## 🎬 Demo
+
+![end-to-end demo](docs/demo/application-demo.gif)
+
+*Real screen recording: expand POST /api/orders in Swagger → execute → 201 →
+list orders. Captured with `python docs/capture.py` against the live stack.*
+
+## 🔧 Environment variables
+
+See [`.env.example`](.env.example) (copy to `.env`; never commit secrets).
+
+| Var | Purpose | Default |
+|---|---|---|
+| `DATABASE_URL` | SQLAlchemy URL (`postgresql+psycopg://…` or `sqlite:///...`) | `./lab.db` |
+| `REDIS_URL` | cache+queue backend (empty = in-memory) | empty |
+| `POSTGRES_PASSWORD` | compose DB password (**required**, no default) | — |
+| `API_KEY` | gates `/api/*` + `/chaos` via `X-API-Key` (empty = open) | empty |
+| `CHAOS_ENABLED` | `0` disables `/chaos` entirely | `1` |
+| `RATE_LIMIT_RPS` / `RATE_LIMIT_BURST` | per-IP token bucket (`0` = off) | `0` / `50` |
+| `PAGE_SIZE_MAX` | list cap | `100` |
+| `POOL_SIZE` / `POOL_MAX_OVERFLOW` | PG pool | `5` / `10` |
+| `LOG_LEVEL`, `OTEL_ENABLED` | logging / tracing | `INFO` / `0` |
+
+## 🗄️ Database
+
+Schema auto-creates on startup (`init_db`) incl. additive index migration
+(`ix_orders_status`, `ix_orders_created`). Fresh DB →
+`python scripts/seed.py --items 8` → start API/worker. PG pool uses
+`pool_pre_ping`; sessions always closed (rollback on error).
+
+## 🧪 Testing
+
+```
+pytest -q            # 48 tests: unit + integration + real-process E2E
+ruff check .         # lint
+python -m pip_audit -r requirements.txt
+```
+Details: [`docs/testing.md`](docs/testing.md). CI runs lint → tests (with
+Postgres+Redis services) → audit → docker build.
+
+## 🚢 Production deployment
+
+Single-host Compose is the deployed architecture (verified: 6/6 healthy +
+smoke green). Rationale, scaling, backup/rollback, monitoring, cost:
+[`docs/deployment.md`](docs/deployment.md). No public-cloud deploy exists
+(no cloud credentials here) — compose + k8s manifests are the artifacts.
+
+## 🔒 Security
+
+Optional API-key auth, chaos kill-switch, rate limiting, security headers,
+request IDs, error envelopes (no stack traces to clients), non-root image,
+RBAC + NetworkPolicy, `pip-audit` in CI. Audit + residual risks:
+[`docs/SECURITY.md`](docs/SECURITY.md) and [`docs/AUDIT.md`](docs/AUDIT.md).
+Report issues privately to the owner.
+
+## 🩺 Monitoring & troubleshooting
+
+Prometheus :9090 (4 rules: 5xx>5%, p95>500ms, queue>50, DB down), Grafana
+:3000, `/live` (process), `/ready` (deps), `/metrics`. Common gotchas:
+use `127.0.0.1` not `localhost` (IPv6 delay); missing `POSTGRES_PASSWORD`
+fails fast; in-memory queue is per-process (use Redis across processes).
+
+## Project status
+
+```
+Production Ready: YES (single-host Compose, with documented limitations)
+E2E Tested: YES (real-process journey incl. failure paths)
+Deployment: local Compose (6/6 healthy, smoke green); no public cloud (no creds)
+```
+
+---
+
 ## Repository Layout
 
 ```

@@ -4,6 +4,20 @@ All notable changes, newest first. Format: `Added / Fixed / Changed / Security`.
 
 ## [Unreleased]
 
+## 2026-09-08 — Productionization pass
+- Added: `app/config.py` + `.env.example` (central env config), API-key auth,
+  `CHAOS_ENABLED` kill-switch, per-IP rate limiting, security headers,
+  request IDs, error envelopes, `/live`, paginated `GET /api/orders`, 201 +
+  Location on create, request validation limits, PG pool config + status indexes
+  with additive migration, `scripts/seed.py`.
+- Added: real-process E2E (`tests/test_e2e.py`), PG integration
+  (`tests/test_pg.py`), CI Postgres+Redis services + docker build step.
+- Fixed: worker Dockerfile HEALTHCHECK (moved per-service; redis-ping for
+  worker), Grafana provisioning YAML format, compose secrets via env,
+  resource limits, Redis AOF persistence.
+- Verified: full Compose deploy (6/6 healthy), smoke green, 48/48 tests,
+  Playwright screenshots + real demo GIF.
+
 ## 2026-09-08 — M0–M13 complete + one-click console
 - Added: `lab_gui.py` tkinter console + `Start Lab.bat` one-click launcher.
 - Added: kind evidence (deploy, pod-kill recovery), Prometheus rules, Grafana

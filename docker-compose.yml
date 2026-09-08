@@ -2,41 +2,68 @@ services:
   api:
     build: .
     ports: ["8000:8000"]
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql+psycopg://lab:lab@db:5432/lab
-      REDIS_URL: redis://cache:6379/0
-      OTEL_ENABLED: "1"
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://lab:lab@db:5432/lab}
+      REDIS_URL: ${REDIS_URL:-redis://cache:6379/0}
+      OTEL_ENABLED: "0"
     depends_on:
       db: {condition: service_healthy}
       cache: {condition: service_healthy}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+        reservations: {memory: 128M}
   worker:
     build: .
     command: python -m app.worker
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql+psycopg://lab:lab@db:5432/lab
-      REDIS_URL: redis://cache:6379/0
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://lab:lab@db:5432/lab}
+      REDIS_URL: ${REDIS_URL:-redis://cache:6379/0}
     depends_on:
       db: {condition: service_healthy}
       cache: {condition: service_healthy}
     restart: unless-stopped
+    healthcheck:
+      # worker's lifeline is the broker: ping redis, not HTTP
+      test: ["CMD", "python", "-c",
+             "import os,redis; redis.Redis.from_url(os.environ.get('REDIS_URL','redis://cache:6379/0'), socket_timeout=3).ping()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: lab
-      POSTGRES_PASSWORD: lab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
       POSTGRES_DB: lab
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lab"]
       interval: 5s
       retries: 10
+    restart: unless-stopped
   cache:
     image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [cachedata:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       retries: 10
+    restart: unless-stopped
   prometheus:
     image: prom/prometheus:v2.52.0
     ports: ["9090:9090"]
@@ -44,15 +71,21 @@ services:
       - "./observability/prometheus.yml:/etc/prometheus/prometheus.yml"
       - "./observability/prometheus-rules.yml:/etc/prometheus/rules.yml"
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    restart: unless-stopped
   grafana:
     image: grafana/grafana:11.1.0
     ports: ["3000:3000"]
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: lab
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-lab}
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/lab.json
     volumes:
       - "./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml"
       - "./observability/grafana-dashboard.json:/etc/grafana/dashboards/lab.json"
+      - "grafanadata:/var/lib/grafana"
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  cachedata:
+  grafanadata:

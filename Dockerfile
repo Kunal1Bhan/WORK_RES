@@ -9,6 +9,7 @@ COPY --chown=lab:lab slo-engine ./slo-engine
 COPY --chown=lab:lab remediation-engine ./remediation-engine
 USER lab
 EXPOSE 8000
-HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+# NOTE: no HEALTHCHECK here — api and worker share this image but only the
+# API serves HTTP. Healthchecks are defined per-service in docker-compose.yml
+# (and as probes in deploy/kubernetes/).
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -3,12 +3,32 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lab
+          POSTGRES_PASSWORD: lab
+          POSTGRES_DB: lab
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.13"}
       - run: pip install -r requirements.txt
-      - run: ruff check app failure-engine slo-engine remediation-engine traffic-engine dr-engine gpu-scheduler model-serving benchmarks tests
+      - run: ruff check .
       - run: pytest -q
+        env:
+          TEST_PG_URL: postgresql+psycopg://lab:lab@127.0.0.1:5432/lab
       - run: pip install pip-audit && python -m pip_audit -r requirements.txt
         continue-on-error: true
+      - run: docker build -t lab-api:ci .
