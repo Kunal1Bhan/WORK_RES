@@ -1,4 +1,6 @@
-.PHONY: dev-up dev-down test lint api worker chaos slo-demo kind-up kind-down k8s-deploy k8s-chaos bench
+.PHONY: dev-up dev-down test lint api worker chaos slo-demo kind-up kind-down k8s-deploy k8s-chaos bench gui
+gui:
+	python lab_gui.py
 dev-up:
 	docker compose up --build -d
 dev-down:
