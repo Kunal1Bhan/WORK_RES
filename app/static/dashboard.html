@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliability Lab — Dashboard</title>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #131c31; --panel2: #1a2540;
+    --line: #263252; --txt: #e8eefc; --mut: #93a1c0;
+    --acc: #4f8cff; --ok: #34d399; --bad: #f87171; --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+         font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 24px;
+           border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  header p { margin: 2px 0 0; color: var(--mut); font-size: 13px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--warn);
+         box-shadow: 0 0 10px currentColor; flex: none; }
+  .dot.ok { background: var(--ok); color: var(--ok); }
+  .dot.bad { background: var(--bad); color: var(--bad); }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 14px; margin-bottom: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px 18px; }
+  .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+             letter-spacing: .08em; color: var(--mut); font-weight: 600; }
+  .big { font-size: 30px; font-weight: 700; }
+  .sub { color: var(--mut); font-size: 13px; margin-top: 4px; }
+  .ok-t { color: var(--ok); } .bad-t { color: var(--bad); } .mut-t { color: var(--mut); }
+  section.card { margin-bottom: 18px; }
+  section h2 { margin: 0 0 12px; font-size: 16px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=text] { flex: 1; min-width: 180px; background: var(--panel2);
+    border: 1px solid var(--line); color: var(--txt); border-radius: 8px;
+    padding: 10px 12px; font-size: 15px; }
+  input[type=text]:focus { outline: 2px solid var(--acc); border-color: var(--acc); }
+  button { background: var(--acc); color: #fff; border: 0; border-radius: 8px;
+           padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button:hover { filter: brightness(1.12); }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: wait; }
+  button.ghost { background: var(--panel2); border: 1px solid var(--line); }
+  button.danger { background: #7f2d3a; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--mut); font-weight: 600; font-size: 12px; text-transform: uppercase;
+       letter-spacing: .06em; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px;
+          font-weight: 600; }
+  .pill.done { background: rgba(52,211,153,.15); color: var(--ok); }
+  .pill.pending { background: rgba(251,191,36,.15); color: var(--warn); }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+           background: var(--panel2); border: 1px solid var(--line); padding: 10px 18px;
+           border-radius: 10px; display: none; max-width: 90vw; }
+  canvas { width: 100%; height: 90px; background: var(--panel2);
+           border-radius: 8px; border: 1px solid var(--line); }
+  .empty { color: var(--mut); padding: 12px 0; }
+  @media (max-width: 560px) { main { padding: 14px; } .big { font-size: 24px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="dot" id="dot" role="status" aria-label="service status"></div>
+  <div>
+    <h1>Reliability Lab</h1>
+    <p>live dashboard · break it, watch it, fix it</p>
+  </div>
+</header>
+<main>
+  <div class="grid" id="cards">
+    <div class="card"><h3>API</h3><div class="big" id="c-api">…</div><div class="sub" id="c-api-sub">checking</div></div>
+    <div class="card"><h3>Database</h3><div class="big" id="c-db">…</div><div class="sub">postgres / sqlite</div></div>
+    <div class="card"><h3>Queue depth</h3><div class="big" id="c-q">…</div><div class="sub" id="c-q-sub">redis / memory</div></div>
+    <div class="card"><h3>Orders</h3><div class="big" id="c-n">…</div><div class="sub" id="c-cache">cache</div></div>
+  </div>
+
+  <section class="card" aria-labelledby="h-new">
+    <h2 id="h-new">New order</h2>
+    <form id="order-form" class="row">
+      <label for="item" class="sub" style="flex-basis:100%">Item (1–200 chars)</label>
+      <input type="text" id="item" name="item" maxlength="200" required
+             placeholder="e.g. book" autocomplete="off">
+      <button type="submit" id="order-btn">Create order</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="h-recent">
+    <h2 id="h-recent">Recent orders</h2>
+    <div id="orders"><p class="empty">loading…</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-lat">
+    <h2 id="h-lat">API latency (measured in this browser)</h2>
+    <canvas id="spark" width="600" height="90" aria-label="latency chart"></canvas>
+    <p class="sub" id="lat-txt">collecting samples…</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-chaos">
+    <h2 id="h-chaos">Chaos (dev hook)</h2>
+    <div class="row">
+      <button class="danger" id="b-err">Inject 50% errors</button>
+      <button class="danger" id="b-lat">Inject 500ms latency</button>
+      <button class="ghost" id="b-clear">Clear chaos</button>
+    </div>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+<script>
+const $ = id => document.getElementById(id);
+const lat = [];
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3500);
+}
+const esc = s => String(s).replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+async function jget(p) {
+  const t0 = performance.now();
+  const r = await fetch(p);
+  const ms = performance.now() - t0;
+  lat.push(ms); if (lat.length > 60) lat.shift();
+  if (!r.ok) throw new Error(p + " -> " + r.status);
+  return r.json();
+}
+function drawSpark() {
+  const c = $("spark"), x = c.getContext("2d");
+  x.clearRect(0, 0, c.width, c.height);
+  if (!lat.length) return;
+  const mx = Math.max(...lat, 1);
+  x.strokeStyle = "#4f8cff"; x.lineWidth = 2; x.beginPath();
+  lat.forEach((v, i) => {
+    const px = i / Math.max(lat.length - 1, 1) * c.width;
+    const py = c.height - (v / mx) * (c.height - 8) - 4;
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+  });
+  x.stroke();
+  const s = [...lat].sort((a, b) => a - b);
+  $("lat-txt").textContent =
+    `last ${lat[lat.length-1].toFixed(1)} ms · p50 ${s[lat.length>>1].toFixed(1)} ms · p95 ${s[Math.floor(lat.length*.95)].toFixed(1)} ms`;
+}
+async function refresh() {
+  try {
+    const [live, ready, orders] = await Promise.all([
+      fetch("/live").then(r => r.ok),
+      jget("/ready"),
+      jget("/api/orders?limit=10")
+    ]);
+    $("dot").className = "dot " + (live ? "ok" : "bad");
+    $("dot").setAttribute("aria-label", live ? "service up" : "service down");
+    $("c-api").innerHTML = live ? '<span class="ok-t">UP</span>' : '<span class="bad-t">DOWN</span>';
+    $("c-api-sub").textContent = "live @ " + new Date().toLocaleTimeString();
+    $("c-db").innerHTML = ready.db === "up" ? '<span class="ok-t">UP</span>' : '<span class="bad-t">DOWN</span>';
+    $("c-q").textContent = ready.queue_depth;
+    $("c-q-sub").textContent = ready.queue_provider;
+    $("c-n").textContent = orders.total;
+    $("c-cache").textContent = "cache: " + ready.cache.provider + " · " + ready.cache.keys + " keys";
+    const box = $("orders");
+    if (!orders.items.length) { box.innerHTML = '<p class="empty">No orders yet — create one above.</p>'; }
+    else box.innerHTML = "<table><thead><tr><th>ID</th><th>Item</th><th>Status</th></tr></thead><tbody>" +
+      orders.items.map(o => `<tr><td>${o.id}</td><td>${esc(o.item)}</td><td><span class="pill ${o.status}">${o.status}</span></td></tr>`).join("") + "</tbody></table>";
+  } catch (e) {
+    $("dot").className = "dot bad";
+    $("c-api").innerHTML = '<span class="bad-t">DOWN</span>';
+  }
+  drawSpark();
+}
+$("order-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const btn = $("order-btn"); btn.disabled = true;
+  try {
+    const r = await fetch("/api/orders", { method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ item: $("item").value }) });
+    if (r.status === 201) { const o = await r.json(); toast("Order #" + o.id + " created"); $("item").value = ""; }
+    else if (r.status === 422) toast("Invalid item (1–200 chars required)");
+    else if (r.status === 500) toast("Chaos active — order failed (expected!)");
+    else toast("Unexpected status " + r.status);
+  } catch (e) { toast("API unreachable — start services first"); }
+  btn.disabled = false;
+  refresh();
+});
+async function chaos(body, msg) {
+  const r = await fetch("/chaos", { method: "POST",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) });
+  toast(r.ok ? msg : "Chaos rejected (" + r.status + ")");
+  refresh();
+}
+$("b-err").onclick = () => chaos({ error_rate: 0.5, latency_ms: 0 }, "50% errors injected");
+$("b-lat").onclick = () => chaos({ error_rate: 0, latency_ms: 500 }, "500ms latency injected");
+$("b-clear").onclick = () => chaos({ error_rate: 0, latency_ms: 0 }, "Chaos cleared");
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

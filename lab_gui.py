@@ -181,7 +181,27 @@ def launch_gui(controller=None):
     ctl = controller or LabController()
     root = tk.Tk()
     root.title("Infrastructure Reliability Lab")
-    root.geometry("860x620")
+    root.geometry("900x640")
+    root.configure(bg="#0b1220")
+    style = ttk.Style()
+    for theme in ("clam", "alt", "default"):
+        try:
+            style.theme_use(theme)
+            break
+        except tk.TclError:
+            continue
+    style.configure("TNotebook", background="#0b1220", borderwidth=0)
+    style.configure("TNotebook.Tab", padding=(14, 6), font=("Segoe UI", 10))
+    style.configure("TFrame", background="#0b1220")
+    style.configure("TLabel", background="#0b1220", foreground="#e8eefc",
+                    font=("Segoe UI", 10))
+    style.configure("TButton", padding=(10, 6), font=("Segoe UI", 10, "bold"))
+    style.map("TButton", background=[("active", "#4f8cff")])
+    alive = {"v": True}
+    ui_q = queue.Queue()  # callables executed on the UI thread (F1 fix)
+
+    def ui_do(fn):
+        ui_q.put(fn)
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True, padx=8, pady=8)
@@ -203,9 +223,14 @@ def launch_gui(controller=None):
         row += 1
 
     def refresh():
-        for name, dot in lights.items():
-            up = ctl.is_up(name)
-            dot.config(fg="green" if up else "red")
+        if not alive["v"]:
+            return
+        try:
+            for name, dot in lights.items():
+                up = ctl.is_up(name)
+                dot.config(fg="green" if up else "red")
+        except tk.TclError:
+            return
         root.after(2000, refresh)
 
     btns = ttk.Frame(dash)
@@ -233,8 +258,8 @@ def launch_gui(controller=None):
 
     def show(fn):
         def go():
-            out_chaos.delete("1.0", "end")
-            out_chaos.insert("end", fn() + "\n")
+            ui_do(lambda: out_chaos.delete("1.0", "end"))
+            ui_do(lambda: out_chaos.insert("end", fn() + "\n"))
         threading.Thread(target=go, daemon=True).start()
 
     fr = ttk.Frame(chaos)
@@ -257,19 +282,26 @@ def launch_gui(controller=None):
     fr2 = ttk.Frame(bench)
     fr2.pack(pady=4)
 
+    bench_btn = ttk.Button(fr2, text="Run 60 RPS benchmark + SLO")
+    bench_btn.pack(padx=4)
+
     def bench_go():
-        out_bench.delete("1.0", "end")
-        out_bench.insert("end", "running load test…\n")
+        ui_do(lambda: out_bench.delete("1.0", "end"))
+        ui_do(lambda: out_bench.insert("end", "running load test…\n"))
         txt = ctl.run_script(["benchmarks/loadtest.py", "--base", "http://127.0.0.1:8000",
                               "--rps", "60", "--seconds", "15",
                               "--out", "benchmarks/results-gui.jsonl"])
-        out_bench.insert("end", txt + "\n")
+        ui_do(lambda: out_bench.insert("end", txt + "\n"))
         slo = ctl.run_script(["slo-engine/slo.py", "--log",
                               "benchmarks/results-gui.jsonl", "--target", "99.9"])
-        out_bench.insert("end", "SLO:\n" + slo + "\n")
+        ui_do(lambda: out_bench.insert("end", "SLO:\n" + slo + "\n"))
+        ui_do(lambda: bench_btn.config(state="normal"))
 
-    ttk.Button(fr2, text="Run 60 RPS benchmark + SLO",
-               command=lambda: threading.Thread(target=bench_go, daemon=True).start()).pack(padx=4)
+    def bench_start():
+        bench_btn.config(state="disabled")  # busy-state (F4 fix)
+        threading.Thread(target=bench_go, daemon=True).start()
+
+    bench_btn.config(command=bench_start)
 
     # ---- Engines tab ----
     eng = ttk.Frame(notebook)
@@ -281,8 +313,8 @@ def launch_gui(controller=None):
 
     def eng_show(fn):
         def go():
-            out_eng.delete("1.0", "end")
-            out_eng.insert("end", fn() + "\n")
+            ui_do(lambda: out_eng.delete("1.0", "end"))
+            ui_do(lambda: out_eng.insert("end", fn() + "\n"))
         threading.Thread(target=go, daemon=True).start()
 
     ttk.Button(fr3, text="GPU inventory",
@@ -304,17 +336,34 @@ def launch_gui(controller=None):
     logbox.pack(fill="x", padx=8, pady=(0, 8))
 
     def pump():
+        drained = False
         while True:
             try:
                 line = ctl.log_q.get_nowait()
             except queue.Empty:
                 break
             logbox.insert("end", line + "\n")
-            logbox.see("end")
-        root.after(300, pump)
+            drained = True
+        while True:
+            try:
+                fn = ui_q.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                fn()
+            except tk.TclError:
+                pass
+        if drained:
+            try:
+                logbox.see("end")
+            except tk.TclError:
+                return
+        if alive["v"]:
+            root.after(300, pump)
 
     def on_close():
-        ctl.stop_all()
+        alive["v"] = False  # stop refresh/pump rescheduling
+        threading.Thread(target=ctl.stop_all, daemon=True).start()  # off UI thread
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_close)

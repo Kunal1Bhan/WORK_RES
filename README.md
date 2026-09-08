@@ -155,6 +155,23 @@ python gpu-scheduler/scheduler.py inventory
 python model-serving/serve.py --port 8100
 ```
 
+## 🖥️ Frontend
+
+Two user surfaces, no framework: the **tkinter desktop console** (one-click
+`Start Lab.bat`) and the **`/dashboard` web UI** served by the API
+(dark theme, live cards, order form, latency sparkline, chaos panel),
+plus auto-generated Swagger at `/docs`.
+
+| Dashboard (desktop) | Dashboard (mobile, 390px, zero overflow) |
+|---|---|
+| ![dashboard](docs/screenshots/frontend/07-dashboard.png) | ![mobile](docs/screenshots/frontend/08-dashboard-mobile.png) |
+
+![frontend demo](docs/demo/frontend-demo.gif)
+
+*Real recording: fill order form → submit → toast + table update → chaos on/off.
+Console bugs fixed this pass: thread-safe widget updates, non-blocking close,
+busy-state on long runs. Details: [`docs/frontend/architecture.md`](docs/frontend/architecture.md).*
+
 ---
 
 ## 📸 Screenshots

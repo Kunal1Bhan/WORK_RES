@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -247,4 +247,13 @@ def set_chaos(body: dict):
 
 @app.get("/")
 def root():
-    return {"service": "reliability-lab", "docs": "/docs", "health": "/health"}
+    return {"service": "reliability-lab", "docs": "/docs",
+            "dashboard": "/dashboard", "health": "/health"}
+
+
+@app.get("/dashboard", response_class=FileResponse)
+def dashboard():
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    return FileResponse(os.path.join(here, "static", "dashboard.html"),
+                        media_type="text/html")

@@ -29,6 +29,8 @@ jobs:
       - run: pytest -q
         env:
           TEST_PG_URL: postgresql+psycopg://lab:lab@127.0.0.1:5432/lab
+      - run: pip install playwright && python -m playwright install chromium
+      - run: pytest tests/test_browser.py -q
       - run: pip install pip-audit && python -m pip_audit -r requirements.txt
         continue-on-error: true
       - run: docker build -t lab-api:ci .
