@@ -1,86 +1,95 @@
-# 🧪 Infrastructure Reliability Lab
+# Infrastructure Reliability Lab — Distributed Failure Engineering from Scratch
 
-![CI](https://github.com/Kunal1Bhan/WORK_RES/actions/workflows/ci.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.13-blue)
-![Go](https://img.shields.io/badge/go-1.25-cyan)
-![Kubernetes](https://img.shields.io/badge/kubernetes-1.31-326ce5)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/Kunal1Bhan/WORK_RES/actions/workflows/ci.yml/badge.svg)](https://github.com/Kunal1Bhan/WORK_RES/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A hands-on distributed reliability platform in **Python + Go**: break things,
-watch them, measure them, fix them — with evidence for every claim.
+**Infrastructure Reliability Lab** is a from-scratch distributed reliability platform in Python (+ a Go operator): a real FastAPI workload with Postgres/Redis, a chaos engine, SLO measurement, policy-driven remediation, DR drills, GPU model serving, and Kubernetes manifests — built milestone by milestone, with measured evidence for every claim.
 
-## 📖 About
+> **Status:** All 13 milestones (M0–M13) complete and verified — 38/38 tests green,
+> 194 RPS @ p95 34ms, pod-kill recovery on kind in ~14s, real RTX 3070 Ti
+> inference at 75 RPS. See `docs/PROJECT-REPORT.md` for the full phase-by-phase record.
 
-**What it is:** a self-contained lab that runs a real distributed system
-(FastAPI API, background worker, Postgres, Redis, Prometheus, Grafana) on your
-machine or a local Kubernetes cluster — plus the tooling around it: chaos
-injection, SLO measurement, policy-driven remediation, traffic routing, DR
-drills, GPU scheduling with model serving, and a Go Kubernetes operator.
+![Architecture](docs/assets/architecture.svg)
 
-**Why it exists:** reliability is learned by breaking systems under observation,
-not by reading about it. Every milestone here follows one rule — *implemented,
-tested, broken, observed, measured, documented* — so each claim links to a test,
-a benchmark number, or a captured incident (see
-[docs/PROJECT-REPORT.md](docs/PROJECT-REPORT.md)).
+---
 
-**Who it's for:** DevOps/SRE learners and practitioners who want a single repo
-that goes from `python lab_gui.py` to multi-service Kubernetes chaos drills,
-and interview-ready evidence of systems thinking (find the full phase-by-phase
-record in [docs/](docs/README.md)).
+## Why Python (+ a Go operator, not Go everywhere)
 
-**Status:** all 13 milestones (M0–M13) delivered and measured — API 194 RPS @
-p95 34ms, pod-kill recovery on kind, real RTX 3070 inference at 75 RPS.
-Residual gaps are listed openly in the project report.
+The workload, chaos tooling, SLO math, and drills need maximum iteration speed and
+zero build friction on a Windows dev machine — Python with FastAPI/SQLAlchemy wins
+there, and SQLite/in-memory fallbacks mean the whole lab runs with no infrastructure.
 
-## ⚡ One-click start
+The Kubernetes operator is Go because controllers belong to the `controller-runtime`
+ecosystem: typed CRDs, code-generated clients, and a reconcile pattern reviewers
+expect. Each language is used where its ecosystem is strongest; the boundary is the
+`ProductionService` CRD in `operator/config/crd.yaml`.
 
-**Double-click `Start Lab.bat`** — or run one command:
+- **Workload (`app/`)** — FastAPI + uvicorn; background worker; Postgres with
+  SQLite fallback; Redis with in-memory fallback.
+- **Console (`lab_gui.py`)** — stdlib-only tkinter; one click boots API + worker
+  + model serving (no Electron, no new deps).
+- **Operator (`operator/`)** — Go reconcile core (drift/scale/rollback/no-flap),
+  unit-tested without a cluster.
+
+---
+
+## Architecture
+
+```
+                  ┌──────────────┐
+                  │  lab_gui.py  │  one-click console
+                  │  (tkinter)   │
+                  └──────┬───────┘
+                         │ start/stop + buttons
+                         ▼
+                  ┌──────────────┐        ┌──────────────┐
+                  │ FastAPI api  │───────▶│   Postgres   │  or SQLite fallback
+                  │ :8000        │        │   orders     │
+                  └──────┬───────┘        └──────────────┘
+                         │                ┌──────────────┐
+                         ├───────────────▶│ Redis/memory │  cache + queue
+                         │                └──────┬───────┘
+                         │                       │ drain
+                         │                ┌──────▼───────┐
+                         │                │    worker    │  marks orders done
+                         │                └──────────────┘
+                         ▼
+                  ┌──────────────┐        ┌──────────────┐
+                  │  Prometheus  │───────▶│   Grafana    │  dashboard + alerts
+                  │  :9090       │        │   :3000      │
+                  └──────────────┘        └──────────────┘
+
+  failurectl ──chaos──▶ api ◀──remediate── policy engine (cooldown + audit)
+  loadtest ──traffic──▶ api ──JSONL──▶ slo.py (availability, p50/p95/p99)
+  router ──weighted──▶ regions (health-checked failover)
+  drill ──detect/evacuate/backup/promote/verify──▶ JSON report
+  scheduler ──cuda:0──▶ model serving (RTX 3070 Ti, 75 RPS)
+  operator (Go) ──ProductionService CRD──▶ kind/k8s
+```
+
+**Supporting doc:** `docs/ARCHITECTURE.md` is the canonical architecture reference.
+
+---
+
+## Quickstart
+
+### Prerequisites
+
+- **Python 3.12+** (3.13 tested), `pip`
+- Optional: **Docker** (Compose stack), **kind + kubectl** (Kubernetes Gerald),
+  **NVIDIA GPU** (else the `sim` provider is used)
+
+### One-click console (recommended)
+
+Double-click **`Start Lab.bat`** — or:
 
 ```
 python lab_gui.py
 ```
 
-That boots the API + worker (+ model serving) and opens the console:
-service status lights, chaos injection, benchmarks+SLO, GPU/DR demos, live logs.
+Boots API + worker + model serving and opens the console: status lights, chaos
+buttons, benchmark+SLO runner, GPU/DR demos, live logs. Closing it stops everything.
 
-## 🗺️ Architecture
-
-```mermaid
-flowchart LR
-    U([user / GUI]) --> API[FastAPI api]
-    API --> DB[(Postgres / SQLite)]
-    API --> C[(Redis / memory cache)]
-    API --> Q[[Redis / memory queue]]
-    Q --> W(worker)
-    W --> DB
-    API --> P([Prometheus])
-    P --> G([Grafana])
-    F[failurectl / k8s chaos] --> API
-    S[slo.py] --> P
-    R[policy remediate] --> API
-    T[traffic router] --> API
-    GPU{gpu scheduler} --> MS([model serving])
-```
-
-## 🧩 What's inside
-
-| Area | Contents |
-|---|---|
-| `app/` | FastAPI API, worker, DB/cache/queue, metrics, OTEL tracing, JSON logs |
-| `lab_gui.py` | One-click desktop console (stdlib only) |
-| `failure-engine/` | `failurectl` CLI (latency/error/cpu) + kubectl scenarios |
-| `slo-engine/` | SLO definitions + availability/p50/p95/p99 evaluator |
-| `remediation-engine/` | Policy engine (cooldown, max-attempts, audit log) |
-| `traffic-engine/` | Weighted router with health checks + failover |
-| `dr-engine/` | DR drill runner with JSON reports |
-| `gpu-scheduler/` + `model-serving/` | Real nvidia-smi placement + HTTP inference |
-| `operator/` (Go) | ProductionService CRD + reconcile core (drift/scale/rollback) |
-| `deploy/kubernetes/` | API, worker, Postgres, Redis, RBAC, NetworkPolicy |
-| `observability/` | Prometheus rules, Grafana dashboard + datasource |
-| `benchmarks/` | Load generator + measured report |
-| `docs/` | [Full index](docs/README.md) — start with [PROJECT-REPORT](docs/PROJECT-REPORT.md) |
-
-## 🚀 Quickstart (terminal)
+### Terminal (no Docker)
 
 ```
 pip install -r requirements.txt
@@ -89,16 +98,119 @@ python -m app.worker               # terminal 2
 pytest -q                          # 38 tests
 ```
 
-Full stack: `docker compose up --build` (API :8000, Prometheus :9090, Grafana :3000).
-Kubernetes: `make kind-up k8s-deploy` then `make k8s-chaos`.
+### Docker Compose (full stack)
 
-## 📊 Measured highlights
+```
+docker compose up --build -d
+# API :8000 · Prometheus :9090 · Grafana :3000 (admin/lab)
+```
 
-- API: **194 RPS, p95 34ms, 100% availability** (`benchmarks/BENCHMARKS.md`)
-- Pod-kill on kind: both API pods deleted → rescheduled in ~14s, traffic OK
-- GPU inference (RTX 3070 Ti): **75 RPS, p50 15ms** after 6x telemetry-cache fix
-- DR drill: PASS, 1034-row backup · Go operator: 5/5 tests
+### Kubernetes (kind)
 
-## 📄 License
+```
+make kind-up                       # kind create cluster --name lab
+docker build -t lab-api:latest .
+kind load docker-image lab-api:latest --name lab
+make k8s-deploy                     # apply + wait for rollout
+make k8s-chaos                      # delete API pods, watch them recover
+```
+
+### 60-second first chaos (local API running)
+
+```
+curl -s localhost:8000/health
+python failure-engine/failurectl.py error --rate 0.5
+curl -X POST localhost:8000/api/orders -H "Content-Type: application/json" -d "{\"item\":\"book\"}"
+# expect: {"error":"injected failure"} with HTTP 500
+python failure-engine/failurectl.py clear
+```
+
+The full guided tour (benchmarks → SLO → DR drill → GPU) lives in
+`benchmarks/BENCHMARKS.md` and `docs/PROJECT-REPORT.md`.
+
+### How this compares
+
+| | Production platform (EKS + RDS + MSK…) | Real K8s + Prometheus | **This lab** |
+|---|---|---|---|
+| Goal | serve users | observe production | **education**: every layer runnable locally, fully measured |
+| Workload | polyglot microservices | your apps | FastAPI + worker + PG/Redis |
+| Chaos | Chaos Mesh / Litmus | manual | `failurectl` + kubectl scenarios |
+| SLOs | vendor APM / Sloth | PromQL rules | alert rules + offline evaluator |
+| Remediation | runbooks + on-call | Alertmanager hooks | policy engine with audit log |
+| GPU serving | SageMaker / Triton | NVIDIA stack | nvidia-smi placement + CPU inference |
+| Operator | Crossplane / custom | controller-runtime | reconcile core, CRD applied to kind |
+| Cost to run | $$$ | cluster $ | **$0** (fallbacks need nothing) |
+
+### Console / CLIs
+
+```
+python lab_gui.py                          # desktop console
+python failure-engine/failurectl.py error --rate 0.5
+python slo-engine/slo.py --log benchmarks/results-200rps.jsonl --target 99.9
+python remediation-engine/remediate.py --dry-run --once
+python benchmarks/loadtest.py --base http://127.0.0.1:8000 --rps 60 --seconds 20
+python traffic-engine/router.py --regions http://localhost:8000 --port 8090
+python dr-engine/drill.py --primary http://127.0.0.1:8000 --db lab.db
+python gpu-scheduler/scheduler.py inventory
+python model-serving/serve.py --port 8100
+```
+
+---
+
+## Repository Layout
+
+```
+app/                 # FastAPI API, worker, DB/cache/queue, metrics, OTEL, JSON logs
+lab_gui.py           # one-click tkinter console (Start Lab.bat)
+failure-engine/      # failurectl CLI + kubectl scenarios
+slo-engine/          # slos.yaml + availability/latency evaluator
+remediation-engine/  # policies.yaml + engine (cooldown, audit)
+traffic-engine/      # weighted router with health checks
+dr-engine/           # DR drill runner + reports
+gpu-scheduler/       # nvidia-smi/sim placement
+model-serving/       # HTTP inference + GPU telemetry
+operator/            # Go ProductionService CRD + reconcile core + config
+deploy/kubernetes/   # API, worker, Postgres, Redis, RBAC, NetworkPolicy
+observability/       # Prometheus rules, Grafana dashboard + datasource
+benchmarks/          # loadtest.py + measured BENCHMARKS.md
+tests/               # 38 pytest tests (API, SLO, chaos, router, DR, GPU, GUI…)
+docs/                # REPORT, ARCHITECTURE, MILESTONES, ENVIRONMENT, DECISIONS…
+```
+
+---
+
+## ⚠️ Windows Notes — Read Before Benchmarking
+
+- **Always use `127.0.0.1`, never `localhost`, in scripts.** Python's `urllib`
+  pays a ~2s IPv6-fallback penalty per connection to `localhost` on this host;
+  it silently destroys benchmark numbers (documented in `benchmarks/BENCHMARKS.md`).
+- **kindnet ignores NetworkPolicy.** Policies apply cleanly but enforcement is
+  NOT MEASURED here — needs Calico.
+- **`/chaos` is a dev-only hook.** Validated inputs, but put auth in front before
+  any shared-cluster use.
+
+---
+
+## Further Reading
+
+- `docs/PROJECT-REPORT.md` — final validation: per-milestone verdicts + evidence
+- `docs/ARCHITECTURE.md` — canonical architecture + dependency graph
+- `docs/MILESTONES.md` — M0–M13 status table
+- `docs/ENVIRONMENT.md` — probed host/tooling report
+- `docs/FAILURE-MODEL.md` — scenarios, detection, recovery
+- `docs/DECISIONS.md` — ADRs 001–005
+- `docs/SECURITY.md` — audit results + hardening
+- `benchmarks/BENCHMARKS.md` — measured numbers + limitations
+- `ABOUT.md` — project profile in one page
+
+---
+
+## Contributing
+
+PRs welcome — run `pytest -q` and `ruff check .` before pushing; keep the
+evidence-first rule (every claim cites a test, a benchmark, or a captured run).
+Report security issues privately to the repo owner.
+
+## License
 
 MIT — see [LICENSE](LICENSE).
