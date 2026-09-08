@@ -1,5 +1,6 @@
 """FastAPI service: orders API + health + chaos hooks, production-hardened."""
 import json
+import logging
 import random
 import threading
 import time
@@ -18,9 +19,10 @@ from . import metrics as m
 from . import queue_ as q
 from . import telemetry as tel
 from .config import settings
-from .db import Order, get_session, init_db
+from .db import Order, Product, Event, get_session, init_db, log_event, PROMOS
 
-import logging
+LOW_STOCK_AT = 5
+
 log = tel.setup_logging(getattr(logging, settings.LOG_LEVEL, logging.INFO))
 _trace = tel.setup_tracing()
 
@@ -75,7 +77,20 @@ INJECT = {"latency_ms": 0, "error_rate": 0.0}
 
 
 class OrderIn(BaseModel):
-    item: str = Field(min_length=1, max_length=200)
+    item: str = Field(default="", max_length=200)
+    product_id: int | None = None
+    qty: int = Field(default=1, ge=1, le=100)
+    promo: str | None = Field(default=None, max_length=20)
+
+
+class ProductIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    price_cents: int = Field(ge=0)
+    stock: int = Field(ge=0)
+
+
+class RestockIn(BaseModel):
+    qty: int = Field(ge=1, le=10000)
 
 
 # ---- middleware: request id + metrics + security headers ----
@@ -168,23 +183,49 @@ def create_order(o: OrderIn):
         time.sleep(INJECT["latency_ms"] / 1000.0)
     if INJECT["error_rate"] and random.random() < INJECT["error_rate"]:
         return err("injected_failure", "injected failure (chaos)", 500)
+    promo = (o.promo or "").strip().upper() or None
+    if promo and promo not in PROMOS:
+        return err("validation_error", f"unknown promo code (try: {', '.join(PROMOS)})", 422)
     s = get_session()
     try:
-        row = Order(item=o.item, status="pending")
+        if o.product_id is not None:
+            prod = s.query(Product).filter(Product.id == o.product_id).first()
+            if not prod:
+                return err("not_found", "product not found", 404)
+            if prod.stock < o.qty:
+                return err("out_of_stock",
+                            f"only {prod.stock} of {prod.name} left", 409)
+            discount = PROMOS.get(promo, 0.0)
+            total = int(round(prod.price_cents * o.qty * (1 - discount)))
+            prod.stock -= o.qty
+            row = Order(item=prod.name, status="pending", product_id=prod.id,
+                        qty=o.qty, total_cents=total, promo=promo)
+            if prod.stock < LOW_STOCK_AT:
+                log_event(s, "stock_low", f"{prod.name}: {prod.stock} left")
+        else:
+            if not o.item.strip():
+                return err("validation_error",
+                            "item is required (1-200 chars) without product_id", 422)
+            row = Order(item=o.item.strip(), status="pending", qty=o.qty,
+                        total_cents=0, promo=promo)
         s.add(row)
         s.commit()
         oid = row.id
+        item, total = row.item, row.total_cents
+        log_event(s, "order_created", f"#{oid} {item} x{row.qty}")
+        s.commit()
     except Exception as e:
         s.rollback()
         log.error(f"order create failed: {type(e).__name__}")
         return err("db_error", "could not create order", 503)
     finally:
         s.close()
-    q.enqueue({"order_id": oid, "item": o.item})
+    q.enqueue({"order_id": oid, "item": item})
     m.ORDERS_CREATED.inc()
-    log.info(f"order created id={oid} item={o.item}")
-    return JSONResponse({"id": oid, "status": "pending"}, status_code=201,
-                        headers={"Location": f"/api/orders/{oid}"})
+    log.info(f"order created id={oid} item={item}")
+    return JSONResponse({"id": oid, "status": "pending",
+                         "total_cents": total},
+                        status_code=201, headers={"Location": f"/api/orders/{oid}"})
 
 
 @app.get("/api/orders")
@@ -198,7 +239,10 @@ def list_orders(limit: int = 20, offset: int = 0):
     finally:
         s.close()
     return {"total": total, "limit": limit, "offset": offset,
-            "items": [{"id": r.id, "item": r.item, "status": r.status} for r in rows]}
+            "items": [{"id": r.id, "item": r.item, "status": r.status,
+                       "product_id": r.product_id, "qty": r.qty,
+                       "total_cents": r.total_cents, "promo": r.promo}
+                      for r in rows]}
 
 
 @app.get("/api/orders/{oid}")
@@ -216,9 +260,111 @@ def get_order(oid: int):
         s.close()
     if not row:
         return err("not_found", "order not found", 404)
-    out = {"id": row.id, "item": row.item, "status": row.status}
+    out = {"id": row.id, "item": row.item, "status": row.status,
+           "product_id": row.product_id, "qty": row.qty,
+           "total_cents": row.total_cents, "promo": row.promo}
     cache_mod.cache_set(ck, json.dumps(out), ttl=30)
     return out
+
+
+@app.post("/api/orders/{oid}/cancel")
+def cancel_order(oid: int):
+    s = get_session()
+    try:
+        row = s.query(Order).filter(Order.id == oid).first()
+        if not row:
+            return err("not_found", "order not found", 404)
+        if row.status != "pending":
+            return err("conflict",
+                        f"only pending orders can cancel (is {row.status})", 409)
+        row.status = "cancelled"
+        if row.product_id is not None:
+            prod = s.query(Product).filter(Product.id == row.product_id).first()
+            if prod:
+                prod.stock += row.qty
+        log_event(s, "order_cancelled", f"#{oid} {row.item} x{row.qty}")
+        s.commit()
+    finally:
+        s.close()
+    cache_mod.cache_delete(f"order:{oid}")
+    return {"id": oid, "status": "cancelled"}
+
+
+@app.get("/api/products")
+def list_products():
+    s = get_session()
+    try:
+        rows = s.query(Product).order_by(Product.id).all()
+    finally:
+        s.close()
+    return {"items": [{"id": p.id, "name": p.name, "price_cents": p.price_cents,
+                       "stock": p.stock, "low": p.stock < LOW_STOCK_AT}
+                      for p in rows]}
+
+
+@app.post("/api/products", status_code=201)
+def create_product(p: ProductIn):
+    s = get_session()
+    try:
+        if s.query(Product).filter(Product.name == p.name).first():
+            return err("conflict", "product name already exists", 409)
+        row = Product(name=p.name, price_cents=p.price_cents, stock=p.stock)
+        s.add(row)
+        s.commit()
+        pid = row.id
+        log_event(s, "product_created", f"{p.name} @ {p.price_cents}c x{p.stock}")
+        s.commit()
+    finally:
+        s.close()
+    return JSONResponse({"id": pid}, status_code=201,
+                        headers={"Location": f"/api/products/{pid}"})
+
+
+@app.post("/api/products/{pid}/restock")
+def restock(pid: int, body: RestockIn):
+    s = get_session()
+    try:
+        row = s.query(Product).filter(Product.id == pid).first()
+        if not row:
+            return err("not_found", "product not found", 404)
+        row.stock += body.qty
+        stock = row.stock
+        log_event(s, "restocked", f"{row.name} +{body.qty} = {stock}")
+        s.commit()
+    finally:
+        s.close()
+    return {"id": pid, "stock": stock}
+
+
+@app.get("/api/stats")
+def stats():
+    from sqlalchemy import func
+    s = get_session()
+    try:
+        revenue = s.query(func.coalesce(func.sum(Order.total_cents), 0)).filter(
+            Order.status == "done").scalar()
+        counts = dict(s.query(Order.status, func.count(Order.id))
+                      .group_by(Order.status).all())
+        low = s.query(Product).filter(Product.stock < LOW_STOCK_AT).all()
+    finally:
+        s.close()
+    m.REVENUE_CENTS.set(revenue)
+    m.LOW_STOCK.set(len(low))
+    return {"revenue_cents": revenue, "by_status": counts,
+            "low_stock": [{"id": p.id, "name": p.name, "stock": p.stock}
+                          for p in low]}
+
+
+@app.get("/api/events")
+def events(limit: int = 15):
+    limit = max(1, min(limit, 100))
+    s = get_session()
+    try:
+        rows = (s.query(Event).order_by(Event.id.desc()).limit(limit).all())
+    finally:
+        s.close()
+    return {"items": [{"id": e.id, "ts": e.ts.isoformat() if e.ts else None,
+                       "kind": e.kind, "detail": e.detail} for e in rows]}
 
 
 @app.post("/chaos")
@@ -242,7 +388,23 @@ def set_chaos(body: dict):
         if not 0.0 <= rate <= 1.0:
             return err("validation_error", "error_rate must be in [0, 1]", 422)
         INJECT["error_rate"] = rate
+    if INJECT["latency_ms"] or INJECT["error_rate"]:
+        _note_event("chaos_set", str(INJECT))
+    else:
+        _note_event("chaos_cleared", "")
     return {"inject": INJECT}
+
+
+def _note_event(kind, detail):
+    try:
+        s = get_session()
+        try:
+            log_event(s, kind, detail)
+            s.commit()
+        finally:
+            s.close()
+    except Exception:
+        pass
 
 
 @app.get("/")

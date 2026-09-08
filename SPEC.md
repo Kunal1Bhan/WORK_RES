@@ -9,6 +9,13 @@ the build order and `docs/PROJECT-REPORT.md` for evidence.
 ## §2 Workload
 - `POST /api/orders` → validate (1–200 chars) → Postgres row (`pending`) →
   Redis queue → worker marks `done`. Returns **201 + Location**.
+- Shop orders: `product_id` + `qty` (+ optional promo `SAVE10`/`HALF`) →
+  atomic stock decrement, discounted `total_cents`; 409 when out of stock,
+  404 unknown product, 422 unknown promo. Cancel restores stock (pending only).
+- Catalog: `products(id, name unique, price_cents, stock)` + restock endpoint;
+  `stock_low` events below 5. Revenue = sum(done totals) via `/api/stats`.
+- Activity feed: `events(kind, detail)` capped at 500 rows (orders, chaos,
+  stock, products).
 - `GET /api/orders?limit&offset` (capped), `GET /api/orders/{id}` (30s cache).
 - Envelopes: `{"error":{"code","message"}}` for 401/403/404/422/429/500/503.
 - Liveness `/live`, readiness `/ready` (DB SELECT 1 + queue depth), `/metrics`.

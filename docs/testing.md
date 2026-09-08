@@ -13,7 +13,7 @@
 
 ## Run
 ```bash
-pytest -q            # full suite (48 tests, ~25s; E2E spins subprocesses)
+pytest -q            # full suite (66 tests, ~25s; E2E spins subprocesses)
 pytest tests/test_api.py -q
 ruff check .         # lint
 python -m pip_audit -r requirements.txt   # dependency audit

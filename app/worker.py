@@ -22,10 +22,17 @@ def process_one(payload: str) -> str:
     s = get_session()
     try:
         row = s.query(Order).filter(Order.id == oid).first()
-        if row:
-            row.status = "done"
-            s.commit()
+        if row is None:
+            m.ORDERS_PROCESSED.labels("missing").inc()
+            return "missing"
+        if row.status != "pending":
+            # cancelled (or already done): leave it alone
+            m.ORDERS_PROCESSED.labels("skipped").inc()
+            return "skipped"
+        row.status = "done"
+        s.commit()
         m.ORDERS_PROCESSED.labels("ok").inc()
+        m.REVENUE_CENTS.inc(row.total_cents or 0)
         return "ok"
     except Exception:
         s.rollback()

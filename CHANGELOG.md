@@ -4,6 +4,16 @@ All notable changes, newest first. Format: `Added / Fixed / Changed / Security`.
 
 ## [Unreleased]
 
+## Shop features (real usage, not a demo)
+- Added: product catalog (create/list/restock), orders with product+qty+promo
+  (SAVE10/HALF), atomic stock decrement, 409 out-of-stock, cancel with stock
+  restore, revenue + low-stock stats, capped activity feed, revenue/low-stock
+  metrics. Worker skips cancelled orders.
+- Fixed: two detached-instance 500s (scalars captured pre-close) +
+  `expire_on_commit=False`; PG migration transactions split per ALTER.
+- Dashboard: shop grid with stock bars, revenue/low-stock cards, promo field,
+  cancel buttons, activity feed. 66/66 tests green.
+
 ## 2026-09-08 — Productionization pass
 - Added: `app/config.py` + `.env.example` (central env config), API-key auth,
   `CHAOS_ENABLED` kill-switch, per-IP rate limiting, security headers,

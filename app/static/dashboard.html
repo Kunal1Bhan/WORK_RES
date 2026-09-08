@@ -56,6 +56,20 @@
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
            background: var(--panel2); border: 1px solid var(--line); padding: 10px 18px;
            border-radius: 10px; display: none; max-width: 90vw; }
+  select, input[type=number] { background: var(--panel2);
+    border: 1px solid var(--line); color: var(--txt); border-radius: 8px;
+    padding: 10px 12px; font-size: 15px; }
+  select:focus, input[type=number]:focus { outline: 2px solid var(--acc); }
+  .stockbar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+  .stockbar > div { height: 100%; background: var(--ok); }
+  .stockbar.low > div { background: var(--warn); }
+  .prod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .prod { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .prod b { font-size: 15px; }
+  .price { color: var(--ok); font-weight: 700; }
+  .feed { font-size: 13px; } .feed div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .feed .k { color: var(--acc); font-weight: 600; margin-right: 8px; }
+  .cancel-btn { padding: 4px 10px; font-size: 12px; }
   canvas { width: 100%; height: 90px; background: var(--panel2);
            border-radius: 8px; border: 1px solid var(--line); }
   .empty { color: var(--mut); padding: 12px 0; }
@@ -73,17 +87,30 @@
 <main>
   <div class="grid" id="cards">
     <div class="card"><h3>API</h3><div class="big" id="c-api">…</div><div class="sub" id="c-api-sub">checking</div></div>
-    <div class="card"><h3>Database</h3><div class="big" id="c-db">…</div><div class="sub">postgres / sqlite</div></div>
+    <div class="card"><h3>Revenue</h3><div class="big" id="c-rev">…</div><div class="sub" id="c-rev-sub">done orders</div></div>
     <div class="card"><h3>Queue depth</h3><div class="big" id="c-q">…</div><div class="sub" id="c-q-sub">redis / memory</div></div>
     <div class="card"><h3>Orders</h3><div class="big" id="c-n">…</div><div class="sub" id="c-cache">cache</div></div>
   </div>
+  <div class="grid" id="cards2">
+    <div class="card"><h3>Database</h3><div class="big" id="c-db">…</div><div class="sub">postgres / sqlite</div></div>
+    <div class="card"><h3>Low stock</h3><div class="big" id="c-low">…</div><div class="sub" id="c-low-sub">products &lt; 5 left</div></div>
+  </div>
+
+  <section class="card" aria-labelledby="h-shop">
+    <h2 id="h-shop">Shop — products</h2>
+    <div id="products"><p class="empty">loading…</p></div>
+  </section>
 
   <section class="card" aria-labelledby="h-new">
     <h2 id="h-new">New order</h2>
     <form id="order-form" class="row">
-      <label for="item" class="sub" style="flex-basis:100%">Item (1–200 chars)</label>
-      <input type="text" id="item" name="item" maxlength="200" required
-             placeholder="e.g. book" autocomplete="off">
+      <label for="item" class="sub" style="flex-basis:100%">Product + qty, or a custom item + promo (SAVE10, HALF)</label>
+      <select id="product" aria-label="product"></select>
+      <input type="number" id="qty" value="1" min="1" max="100" aria-label="quantity" style="max-width:90px">
+      <input type="text" id="item" name="item" maxlength="200"
+             placeholder="…or custom item" autocomplete="off">
+      <input type="text" id="promo" maxlength="20" placeholder="promo code"
+             aria-label="promo code" style="max-width:130px">
       <button type="submit" id="order-btn">Create order</button>
     </form>
   </section>
@@ -91,6 +118,11 @@
   <section class="card" aria-labelledby="h-recent">
     <h2 id="h-recent">Recent orders</h2>
     <div id="orders"><p class="empty">loading…</p></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-act">
+    <h2 id="h-act">Activity</h2>
+    <div id="activity"><p class="empty">loading…</p></div>
   </section>
 
   <section class="card" aria-labelledby="h-lat">
@@ -143,10 +175,13 @@ function drawSpark() {
 }
 async function refresh() {
   try {
-    const [live, ready, orders] = await Promise.all([
+    const [live, ready, orders, stats, products, events] = await Promise.all([
       fetch("/live").then(r => r.ok),
       jget("/ready"),
-      jget("/api/orders?limit=10")
+      jget("/api/orders?limit=10"),
+      jget("/api/stats"),
+      jget("/api/products"),
+      jget("/api/events?limit=12")
     ]);
     $("dot").className = "dot " + (live ? "ok" : "bad");
     $("dot").setAttribute("aria-label", live ? "service up" : "service down");
@@ -157,10 +192,43 @@ async function refresh() {
     $("c-q-sub").textContent = ready.queue_provider;
     $("c-n").textContent = orders.total;
     $("c-cache").textContent = "cache: " + ready.cache.provider + " · " + ready.cache.keys + " keys";
-    const box = $("orders");
-    if (!orders.items.length) { box.innerHTML = '<p class="empty">No orders yet — create one above.</p>'; }
-    else box.innerHTML = "<table><thead><tr><th>ID</th><th>Item</th><th>Status</th></tr></thead><tbody>" +
-      orders.items.map(o => `<tr><td>${o.id}</td><td>${esc(o.item)}</td><td><span class="pill ${o.status}">${o.status}</span></td></tr>`).join("") + "</tbody></table>";
+    $("c-rev").textContent = "$" + (stats.revenue_cents / 100).toFixed(2);
+    $("c-rev-sub").textContent = JSON.stringify(stats.by_status);
+    $("c-low").textContent = stats.low_stock.length;
+    $("c-low-sub").textContent = stats.low_stock.map(p => p.name).join(", ") || "all stocked";
+    // products + selector
+    const box = $("products");
+    if (!products.items.length) { box.innerHTML = '<p class="empty">No products — seed the DB.</p>'; }
+    else box.innerHTML = '<div class="prod-grid">' + products.items.map(p => {
+      const pct = Math.min(100, p.stock);
+      return `<div class="prod"><b>${esc(p.name)}</b><br><span class="price">$${(p.price_cents/100).toFixed(2)}</span>` +
+        `<div class="sub">${p.stock} in stock${p.low ? " · LOW" : ""}</div>` +
+        `<div class="stockbar${p.low ? " low" : ""}"><div style="width:${pct}%"></div></div></div>`;
+    }).join("") + "</div>";
+    const sel = $("product");
+    const cur = sel.value;
+    sel.innerHTML = products.items.map(p =>
+      `<option value="${p.id}">${esc(p.name)} — $${(p.price_cents/100).toFixed(2)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+    // orders with cancel buttons
+    const ob = $("orders");
+    if (!orders.items.length) { ob.innerHTML = '<p class="empty">No orders yet — create one above.</p>'; }
+    else ob.innerHTML = "<table><thead><tr><th>ID</th><th>Item</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>" +
+      orders.items.map(o => `<tr><td>${o.id}</td><td>${esc(o.item)} ×${o.qty}</td>` +
+        `<td>$${((o.total_cents||0)/100).toFixed(2)}</td>` +
+        `<td><span class="pill ${o.status}">${o.status}</span></td>` +
+        `<td>${o.status === "pending" ? `<button class="ghost cancel-btn" data-cancel="${o.id}">Cancel</button>` : ""}</td></tr>`).join("") +
+      "</tbody></table>";
+    ob.querySelectorAll("[data-cancel]").forEach(b => b.onclick = async () => {
+      const r = await fetch("/api/orders/" + b.dataset.cancel + "/cancel", { method: "POST" });
+      toast(r.ok ? "Order #" + b.dataset.cancel + " cancelled" : "Cancel failed (" + r.status + ")");
+      refresh();
+    });
+    // activity feed
+    const ab = $("activity");
+    ab.innerHTML = events.items.length ? '<div class="feed">' + events.items.map(e =>
+      `<div><span class="k">${esc(e.kind)}</span>${esc(e.detail)} <span class="mut-t">· ${esc(e.ts || "")}</span></div>`).join("") + "</div>"
+      : '<p class="empty">No activity yet.</p>';
   } catch (e) {
     $("dot").className = "dot bad";
     $("c-api").innerHTML = '<span class="bad-t">DOWN</span>';
@@ -170,12 +238,18 @@ async function refresh() {
 $("order-form").addEventListener("submit", async ev => {
   ev.preventDefault();
   const btn = $("order-btn"); btn.disabled = true;
+  const promo = $("promo").value.trim();
+  const pid = $("product").value;
+  const payload = pid
+    ? { product_id: parseInt(pid, 10), qty: parseInt($("qty").value, 10) || 1 }
+    : { item: $("item").value };
+  if (promo) payload.promo = promo;
   try {
     const r = await fetch("/api/orders", { method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ item: $("item").value }) });
-    if (r.status === 201) { const o = await r.json(); toast("Order #" + o.id + " created"); $("item").value = ""; }
-    else if (r.status === 422) toast("Invalid item (1–200 chars required)");
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload) });
+    if (r.status === 201) { const o = await r.json(); toast("Order #" + o.id + " created ($" + ((o.total_cents||0)/100).toFixed(2) + ")"); $("item").value = ""; $("promo").value = ""; }
+    else if (r.status === 422) toast("Invalid order: " + (await r.json()).error.message);
+    else if (r.status === 409) toast("Not available: " + (await r.json()).error.message);
     else if (r.status === 500) toast("Chaos active — order failed (expected!)");
     else toast("Unexpected status " + r.status);
   } catch (e) { toast("API unreachable — start services first"); }

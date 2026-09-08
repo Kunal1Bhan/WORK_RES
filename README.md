@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/Kunal1Bhan/WORK_RES/actions/workflows/ci.yml/badge.svg)](https://github.com/Kunal1Bhan/WORK_RES/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Infrastructure Reliability Lab** is a from-scratch distributed reliability platform in Python (+ a Go operator): a real FastAPI workload with Postgres/Redis, a chaos engine, SLO measurement, policy-driven remediation, DR drills, GPU model serving, and Kubernetes manifests — built milestone by milestone, with measured evidence for every claim.
+**Infrastructure Reliability Lab** is a from-scratch distributed reliability platform in Python (+ a Go operator): a real FastAPI **shop** (catalog, inventory, promos, cancellations, revenue) with Postgres/Redis, a chaos engine, SLO measurement, policy-driven remediation, DR drills, GPU model serving, and Kubernetes manifests — built milestone by milestone, with measured evidence for every claim.
 
-> **Status:** All 13 milestones (M0–M13) complete and verified — 61/61 tests green,
+> **Status:** All 13 milestones (M0–M13) complete and verified — 66/66 tests green,
 > 194 RPS @ p95 34ms, pod-kill recovery on kind in ~14s, real RTX 3070 Ti
 > inference at 75 RPS. See `docs/PROJECT-REPORT.md` for the full phase-by-phase record.
 > Build order: `CHECKLIST.md`. Canonical spec: `SPEC.md`.
@@ -98,7 +98,7 @@ buttons, benchmark+SLO runner, GPU/DR demos, live logs. Closing it stops everyth
 pip install -r requirements.txt
 uvicorn app.main:app --port 8000   # terminal 1
 python -m app.worker               # terminal 2
-pytest -q                          # 61 tests
+pytest -q                          # 66 tests
 ```
 
 ### One-command demo (Git Bash / Linux / macOS)
@@ -224,7 +224,7 @@ Schema auto-creates on startup (`init_db`) incl. additive index migration
 ## 🧪 Testing
 
 ```
-pytest -q            # 61 tests: unit + integration + real-process + browser E2E
+pytest -q             # 66 tests: unit + integration + real-process + browser E2E
 ruff check .         # lint
 python -m pip_audit -r requirements.txt
 ```

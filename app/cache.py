@@ -33,6 +33,16 @@ def cache_set(key: str, value: str, ttl: int = 60):
     _expiry[key] = time.time() + ttl
 
 
+def cache_delete(key: str):
+    if _r is not None:
+        try:
+            return _r.delete(key)
+        except Exception:
+            pass
+    _store.pop(key, None)
+    _expiry.pop(key, None)
+
+
 def cache_stats():
     if _r is not None:
         try:
