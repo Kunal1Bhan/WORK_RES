@@ -8,8 +8,8 @@ __pycache__/
 .venv/
 
 # Local runtime artifacts
-lab.db
-test_lab.db
+*.db
+*.db-journal
 *.jsonl
 !benchmarks/sample-requests.jsonl
 benchmarks/results-*.jsonl

@@ -4,9 +4,12 @@
 
 **Infrastructure Reliability Lab** is a from-scratch distributed reliability platform in Python (+ a Go operator): a real FastAPI workload with Postgres/Redis, a chaos engine, SLO measurement, policy-driven remediation, DR drills, GPU model serving, and Kubernetes manifests — built milestone by milestone, with measured evidence for every claim.
 
-> **Status:** All 13 milestones (M0–M13) complete and verified — 38/38 tests green,
+> **Status:** All 13 milestones (M0–M13) complete and verified — 61/61 tests green,
 > 194 RPS @ p95 34ms, pod-kill recovery on kind in ~14s, real RTX 3070 Ti
 > inference at 75 RPS. See `docs/PROJECT-REPORT.md` for the full phase-by-phase record.
+> Build order: `CHECKLIST.md`. Canonical spec: `SPEC.md`.
+
+![Demo: order via dashboard, chaos on/off](docs/demo/frontend-demo.gif)
 
 ![Architecture](docs/assets/architecture.svg)
 
@@ -95,7 +98,13 @@ buttons, benchmark+SLO runner, GPU/DR demos, live logs. Closing it stops everyth
 pip install -r requirements.txt
 uvicorn app.main:app --port 8000   # terminal 1
 python -m app.worker               # terminal 2
-pytest -q                          # 38 tests
+pytest -q                          # 61 tests
+```
+
+### One-command demo (Git Bash / Linux / macOS)
+
+```
+./scripts/demo.sh   # install → API + worker → seed → order → chaos → recover
 ```
 
 ### Docker Compose (full stack)
@@ -215,7 +224,7 @@ Schema auto-creates on startup (`init_db`) incl. additive index migration
 ## 🧪 Testing
 
 ```
-pytest -q            # 48 tests: unit + integration + real-process E2E
+pytest -q            # 61 tests: unit + integration + real-process + browser E2E
 ruff check .         # lint
 python -m pip_audit -r requirements.txt
 ```
@@ -270,7 +279,7 @@ operator/            # Go ProductionService CRD + reconcile core + config
 deploy/kubernetes/   # API, worker, Postgres, Redis, RBAC, NetworkPolicy
 observability/       # Prometheus rules, Grafana dashboard + datasource
 benchmarks/          # loadtest.py + measured BENCHMARKS.md
-tests/               # 38 pytest tests (API, SLO, chaos, router, DR, GPU, GUI…)
+tests/               # 61 pytest tests (API, SLO, chaos, router, DR, GPU, GUI, browser…)
 docs/                # REPORT, ARCHITECTURE, MILESTONES, ENVIRONMENT, DECISIONS…
 ```
 
@@ -290,6 +299,9 @@ docs/                # REPORT, ARCHITECTURE, MILESTONES, ENVIRONMENT, DECISIONS�
 
 ## Further Reading
 
+- `SPEC.md` — canonical technical spec (§1–§8)
+- `CHECKLIST.md` — build phases with evidence links
+- `PROMPT.md` — original project brief (historical)
 - `docs/PROJECT-REPORT.md` — final validation: per-milestone verdicts + evidence
 - `docs/ARCHITECTURE.md` — canonical architecture + dependency graph
 - `docs/MILESTONES.md` — M0–M13 status table
