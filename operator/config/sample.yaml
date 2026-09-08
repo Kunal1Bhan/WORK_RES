@@ -1,0 +1,8 @@
+apiVersion: lab.io/v1alpha1
+kind: ProductionService
+metadata:
+  name: lab-api
+spec:
+  image: lab-api:latest
+  replicas: 2
+  rollbackOnError: true

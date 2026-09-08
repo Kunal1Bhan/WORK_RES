@@ -1,0 +1,18 @@
+# Remediation policies (M5). Evaluated top-down; first match wins.
+# Actions: clear_chaos | restart_api (advisory; needs k8s) | page (log only).
+policies:
+  - name: clear-injected-errors
+    when: {metric: error_rate_2m, op: ">", value: 0.05}
+    action: clear_chaos
+    cooldown_seconds: 60
+    max_attempts: 3
+  - name: drain-queue-backlog
+    when: {metric: queue_depth, op: ">", value: 50}
+    action: clear_chaos
+    cooldown_seconds: 120
+    max_attempts: 2
+  - name: db-down-page
+    when: {metric: db_up, op: "==", value: 0}
+    action: page
+    cooldown_seconds: 300
+    max_attempts: 1

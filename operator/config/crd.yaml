@@ -1,0 +1,33 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: productionservices.lab.io
+spec:
+  group: lab.io
+  names:
+    kind: ProductionService
+    listKind: ProductionServiceList
+    plural: productionservices
+    singular: productionservice
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [image, replicas]
+              properties:
+                image: {type: string}
+                replicas: {type: integer, minimum: 1}
+                rollbackOnError: {type: boolean}
+            status:
+              type: object
+              properties:
+                availableReplicas: {type: integer}
+                readyImage: {type: string}
+                phase: {type: string}

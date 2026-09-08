@@ -3,8 +3,9 @@ services:
     build: .
     ports: ["8000:8000"]
     environment:
-      DATABASE_URL: postgresql://lab:lab@db:5432/lab
+      DATABASE_URL: postgresql+psycopg://lab:lab@db:5432/lab
       REDIS_URL: redis://cache:6379/0
+      OTEL_ENABLED: "1"
     depends_on:
       db: {condition: service_healthy}
       cache: {condition: service_healthy}
@@ -13,7 +14,7 @@ services:
     build: .
     command: python -m app.worker
     environment:
-      DATABASE_URL: postgresql://lab:lab@db:5432/lab
+      DATABASE_URL: postgresql+psycopg://lab:lab@db:5432/lab
       REDIS_URL: redis://cache:6379/0
     depends_on:
       db: {condition: service_healthy}
@@ -39,7 +40,19 @@ services:
   prometheus:
     image: prom/prometheus:v2.52.0
     ports: ["9090:9090"]
-    volumes: ["./observability/prometheus.yml:/etc/prometheus/prometheus.yml"]
+    volumes:
+      - "./observability/prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./observability/prometheus-rules.yml:/etc/prometheus/rules.yml"
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: lab
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/lab.json
+    volumes:
+      - "./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml"
+      - "./observability/grafana-dashboard.json:/etc/grafana/dashboards/lab.json"
 
 volumes:
   pgdata:

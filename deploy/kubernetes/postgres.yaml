@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-db
+  labels: {app: lab-db}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: lab-db}
+  template:
+    metadata:
+      labels: {app: lab-db}
+    spec:
+      containers:
+        - name: db
+          image: postgres:16
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_USER, value: lab}
+            - {name: POSTGRES_PASSWORD, value: lab}
+            - {name: POSTGRES_DB, value: lab}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  selector: {app: lab-db}
+  ports: [{port: 5432}]

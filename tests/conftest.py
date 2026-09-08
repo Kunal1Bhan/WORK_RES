@@ -8,7 +8,8 @@ import sys
 LAB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if LAB_DIR not in sys.path:
     sys.path.insert(0, LAB_DIR)
-for p in ("slo-engine", "failure-engine", "remediation-engine"):
+for p in ("slo-engine", "failure-engine", "remediation-engine", "traffic-engine",
+          "dr-engine", "gpu-scheduler", "model-serving", "benchmarks"):
     full = os.path.join(LAB_DIR, p)
     if full not in sys.path:
         sys.path.append(full)

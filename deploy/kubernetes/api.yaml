@@ -10,14 +10,16 @@ spec:
     metadata:
       labels: {app: lab-api}
     spec:
+      serviceAccountName: lab-api
       containers:
         - name: api
           image: lab-api:latest
+          imagePullPolicy: IfNotPresent
           ports: [{containerPort: 8000}]
           livenessProbe: {httpGet: {path: /health, port: 8000}, initialDelaySeconds: 5, periodSeconds: 10}
           readinessProbe: {httpGet: {path: /ready, port: 8000}, initialDelaySeconds: 5, periodSeconds: 10}
           env:
-            - {name: DATABASE_URL, value: postgresql://lab:lab@db:5432/lab}
+            - {name: DATABASE_URL, value: postgresql+psycopg://lab:lab@db:5432/lab}
             - {name: REDIS_URL, value: redis://cache:6379/0}
 ---
 apiVersion: v1

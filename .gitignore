@@ -12,3 +12,7 @@ lab.db
 test_lab.db
 *.jsonl
 !benchmarks/sample-requests.jsonl
+benchmarks/results-*.jsonl
+dr-engine/drill-out/
+remediation-engine/.policy-state.json
+remediation-engine/audit.log

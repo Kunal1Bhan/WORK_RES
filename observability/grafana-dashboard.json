@@ -1,0 +1,46 @@
+{
+  "title": "Reliability Lab",
+  "uid": "reliability-lab",
+  "timezone": "utc",
+  "panels": [
+    {
+      "title": "Request rate (RPS)",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(rate(lab_http_requests_total[1m]))" }]
+    },
+    {
+      "title": "Error rate (5xx ratio)",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum(rate(lab_http_requests_total{status=~\"5..\"}[2m])) / sum(rate(lab_http_requests_total[2m]))"
+      }]
+    },
+    {
+      "title": "Latency p50/p95/p99",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(lab_http_latency_seconds_bucket[5m])) by (le))" },
+        { "expr": "histogram_quantile(0.95, sum(rate(lab_http_latency_seconds_bucket[5m])) by (le))" },
+        { "expr": "histogram_quantile(0.99, sum(rate(lab_http_latency_seconds_bucket[5m])) by (le))" }
+      ]
+    },
+    {
+      "title": "Queue depth",
+      "type": "timeseries",
+      "targets": [{ "expr": "lab_queue_depth" }]
+    },
+    {
+      "title": "DB up",
+      "type": "stat",
+      "targets": [{ "expr": "lab_db_up" }]
+    },
+    {
+      "title": "Orders created vs processed",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(lab_orders_created_total[5m]))" },
+        { "expr": "sum(rate(lab_orders_processed_total[5m])) by (result)" }
+      ]
+    }
+  ]
+}

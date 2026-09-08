@@ -1,0 +1,27 @@
+# SLO definitions (M4). Thresholds mirror observability/prometheus-rules.yml.
+slos:
+  - name: api-availability
+    description: Share of HTTP responses that are not 5xx.
+    target_pct: 99.9
+    window: 30d
+    alert: LabHighErrorRate
+  - name: api-latency-p95
+    description: p95 of HTTP latency must stay under threshold.
+    target_ms: 500
+    window: 30d
+    alert: LabP95LatencyHigh
+  - name: api-latency-p99
+    description: Tracked (no page); reported by slo.py.
+    target_ms: 1000
+    window: 30d
+    alert: none
+  - name: worker-drain
+    description: Queue must drain; depth stays under bound.
+    max_queue_depth: 50
+    window: 5m
+    alert: LabQueueBacklog
+  - name: db-availability
+    description: Database reachable.
+    target_pct: 99.9
+    window: 30d
+    alert: LabDBDown

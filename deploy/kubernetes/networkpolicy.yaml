@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-api-allow
+spec:
+  podSelector:
+    matchLabels: {app: lab-api}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports: [{port: 8000}]
+  egress:
+    - to: [{podSelector: {matchLabels: {app: lab-db}}}]
+      ports: [{port: 5432}]
+    - to: [{podSelector: {matchLabels: {app: lab-cache}}}]
+      ports: [{port: 6379}]
+    - ports: [{port: 53, protocol: UDP}]  # DNS

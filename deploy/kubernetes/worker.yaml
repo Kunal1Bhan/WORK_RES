@@ -13,7 +13,8 @@ spec:
       containers:
         - name: worker
           image: lab-api:latest
+          imagePullPolicy: IfNotPresent
           command: ["python", "-m", "app.worker"]
           env:
-            - {name: DATABASE_URL, value: postgresql://lab:lab@db:5432/lab}
+            - {name: DATABASE_URL, value: postgresql+psycopg://lab:lab@db:5432/lab}
             - {name: REDIS_URL, value: redis://cache:6379/0}

@@ -12,7 +12,11 @@ from sqlalchemy import text
 from . import cache as cache_mod
 from . import metrics as m
 from . import queue_ as q
+from . import telemetry as tel
 from .db import Order, get_session, init_db
+
+log = tel.setup_logging()
+_trace = tel.setup_tracing()
 
 
 @asynccontextmanager
@@ -22,6 +26,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="reliability-lab-api", lifespan=lifespan)
+
+if _trace and _trace[0] == "fastapi":
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app)
+        log.info("otel fastapi instrumentation enabled")
+    except Exception as e:
+        log.info(f"otel instrumentation skipped: {e}")
+elif _trace:
+    log.info("otel manual tracer enabled (no fastapi auto-instrumentation)")
+else:
+    log.info("otel not installed; tracing disabled")
 
 # Failure-injection knobs (set via /chaos, used by failurectl)
 INJECT = {"latency_ms": 0, "error_rate": 0.0}
@@ -86,6 +102,7 @@ def create_order(o: OrderIn):
         s.close()
     q.enqueue({"order_id": oid, "item": o.item})
     m.ORDERS_CREATED.inc()
+    log.info(f"order created id={oid} item={o.item}")
     return {"id": oid, "status": "pending"}
 
 
