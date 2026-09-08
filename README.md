@@ -9,6 +9,29 @@
 A hands-on distributed reliability platform in **Python + Go**: break things,
 watch them, measure them, fix them — with evidence for every claim.
 
+## 📖 About
+
+**What it is:** a self-contained lab that runs a real distributed system
+(FastAPI API, background worker, Postgres, Redis, Prometheus, Grafana) on your
+machine or a local Kubernetes cluster — plus the tooling around it: chaos
+injection, SLO measurement, policy-driven remediation, traffic routing, DR
+drills, GPU scheduling with model serving, and a Go Kubernetes operator.
+
+**Why it exists:** reliability is learned by breaking systems under observation,
+not by reading about it. Every milestone here follows one rule — *implemented,
+tested, broken, observed, measured, documented* — so each claim links to a test,
+a benchmark number, or a captured incident (see
+[docs/PROJECT-REPORT.md](docs/PROJECT-REPORT.md)).
+
+**Who it's for:** DevOps/SRE learners and practitioners who want a single repo
+that goes from `python lab_gui.py` to multi-service Kubernetes chaos drills,
+and interview-ready evidence of systems thinking (find the full phase-by-phase
+record in [docs/](docs/README.md)).
+
+**Status:** all 13 milestones (M0–M13) delivered and measured — API 194 RPS @
+p95 34ms, pod-kill recovery on kind, real RTX 3070 inference at 75 RPS.
+Residual gaps are listed openly in the project report.
+
 ## ⚡ One-click start
 
 **Double-click `Start Lab.bat`** — or run one command:
