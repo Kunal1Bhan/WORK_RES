@@ -1,78 +1,197 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="860" height="380" font-family="Segoe UI, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" font-family="Helvetica, Arial, sans-serif">
   <defs>
     <style>
-      .box { fill: #0d1117; stroke: #58a6ff; stroke-width: 1.5; rx: 8; }
-      .box2 { fill: #0d1117; stroke: #3fb950; stroke-width: 1.5; rx: 8; }
-      .box3 { fill: #0d1117; stroke: #d29922; stroke-width: 1.5; rx: 8; }
-      .t { fill: #e6edf3; font-size: 13px; text-anchor: middle; }
-      .s { fill: #8b949e; font-size: 11px; text-anchor: middle; }
-      .ln { stroke: #8b949e; stroke-width: 1.5; }
-      .hd { fill: #f0f6fc; font-size: 15px; font-weight: bold; }
+      .box { fill: #ffffff; stroke: #111111; stroke-width: 1.6; }
+      .shade { fill: #f2f2f2; stroke: #111111; stroke-width: 1.6; }
+      .dark { fill: #1a1a1a; }
+      .t { fill: #111111; font-size: 12.5px; font-weight: bold; text-anchor: middle; }
+      .s { fill: #444444; font-size: 10.5px; text-anchor: middle; }
+      .xs { fill: #444444; font-size: 9.5px; text-anchor: middle; }
+      .ln { stroke: #111111; stroke-width: 1.3; }
+      .dl { stroke: #111111; stroke-width: 1.1; stroke-dasharray: 5 3; }
+      .lb { fill: #111111; font-size: 9.5px; text-anchor: middle; }
+      .hd { fill: #111111; font-size: 17px; font-weight: bold; text-anchor: middle; }
+      .grp { fill: none; stroke: #888888; stroke-width: 1; stroke-dasharray: 8 4; }
+      .gt { fill: #666666; font-size: 10px; font-weight: bold; letter-spacing: 2px; }
     </style>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#111" stroke-width="1.3"/>
+    </marker>
   </defs>
-  <rect width="860" height="380" fill="#ffffff"/>
-  <text x="430" y="28" class="hd" fill="#111" text-anchor="middle">Infrastructure Reliability Lab</text>
+  <rect width="1000" height="700" fill="#ffffff"/>
+  <text x="500" y="30" class="hd">Infrastructure Reliability Lab — System Architecture</text>
 
-  <!-- client -->
-  <rect x="20" y="60" width="130" height="60" class="box3" style="fill:#fff8e6"/>
-  <text x="85" y="85" class="t" fill="#111">lab_gui.py</text>
-  <text x="85" y="102" class="s" fill="#555">one-click console</text>
+  <!-- ============ CLIENTS (col A) ============ -->
+  <rect x="15" y="48" width="160" height="470" class="grp"/>
+  <text x="95" y="62" class="gt" text-anchor="middle">CLIENTS &amp; CLI</text>
+  <rect x="25" y="72" width="140" height="46" class="box"/>
+  <text x="95" y="90" class="t">lab_gui.py</text>
+  <text x="95" y="105" class="s">tkinter console</text>
+  <rect x="25" y="126" width="140" height="46" class="box"/>
+  <text x="95" y="144" class="t">/dashboard</text>
+  <text x="95" y="159" class="s">web UI + Swagger</text>
+  <rect x="25" y="180" width="140" height="46" class="shade"/>
+  <text x="95" y="198" class="t">failurectl</text>
+  <text x="95" y="213" class="s">latency / error / cpu</text>
+  <rect x="25" y="234" width="140" height="46" class="shade"/>
+  <text x="95" y="252" class="t">k8s chaos</text>
+  <text x="95" y="267" class="s">kill-pods / scale</text>
+  <rect x="25" y="288" width="140" height="46" class="shade"/>
+  <text x="95" y="306" class="t">loadtest</text>
+  <text x="95" y="321" class="s">RPS + JSONL log</text>
+  <rect x="25" y="342" width="140" height="46" class="shade"/>
+  <text x="95" y="360" class="t">drill / router</text>
+  <text x="95" y="375" class="s">DR + traffic</text>
+  <rect x="25" y="396" width="140" height="46" class="shade"/>
+  <text x="95" y="414" class="t">scheduler</text>
+  <text x="95" y="429" class="s">cuda:0 / sim</text>
+  <rect x="25" y="450" width="140" height="56" class="shade"/>
+  <text x="95" y="468" class="t">slo.py + remediate</text>
+  <text x="95" y="483" class="xs">SLO verdict + policy fix</text>
+  <text x="95" y="496" class="xs">cooldown + audit.log</text>
 
-  <!-- api -->
-  <rect x="200" y="60" width="150" height="60" class="box" style="fill:#eef4ff"/>
-  <text x="275" y="85" class="t" fill="#111">FastAPI api</text>
-  <text x="275" y="102" class="s" fill="#555">:8000 + /metrics</text>
+  <!-- ============ SERVICES (col B) ============ -->
+  <rect x="195" y="48" width="200" height="280" class="grp"/>
+  <text x="295" y="62" class="gt" text-anchor="middle">SERVICES (:8000)</text>
+  <rect x="205" y="72" width="180" height="150" class="box"/>
+  <text x="295" y="92" class="t">FastAPI api</text>
+  <text x="295" y="108" class="s">POST /api/orders → 201</text>
+  <text x="295" y="123" class="s">GET /api/orders?limit&amp;offset</text>
+  <text x="295" y="138" class="s">GET /api/orders/{id} (cached)</text>
+  <text x="295" y="153" class="xs">/live · /ready · /metrics</text>
+  <text x="295" y="168" class="xs">/dashboard · /chaos (gated)</text>
+  <text x="295" y="183" class="xs">auth · ratelimit · req-ID · OTEL</text>
+  <text x="295" y="198" class="xs">uvicorn, non-root uid 10001</text>
+  <text x="295" y="213" class="xs">401/403/404/422/429/500/503</text>
+  <rect x="205" y="232" width="180" height="84" class="box"/>
+  <text x="295" y="252" class="t">worker ×N</text>
+  <text x="295" y="267" class="s">drains queue → status=done</text>
+  <text x="295" y="282" class="s">SIGTERM-safe · rollback on err</text>
+  <text x="295" y="297" class="xs">competing consumers scale out</text>
 
-  <!-- db/cache/queue -->
-  <rect x="400" y="45" width="150" height="50" class="box2" style="fill:#eefbf0"/>
-  <text x="475" y="65" class="t" fill="#111">Postgres / SQLite</text>
-  <text x="475" y="82" class="s" fill="#555">orders</text>
-  <rect x="400" y="105" width="150" height="50" class="box2" style="fill:#eefbf0"/>
-  <text x="475" y="125" class="t" fill="#111">Redis / memory</text>
-  <text x="475" y="142" class="s" fill="#555">cache + queue</text>
+  <!-- ============ DATA (col C) ============ -->
+  <rect x="415" y="48" width="185" height="280" class="grp"/>
+  <text x="507" y="62" class="gt" text-anchor="middle">DATA</text>
+  <rect x="425" y="72" width="165" height="118" class="box"/>
+  <text x="507" y="92" class="t">Postgres 16</text>
+  <text x="507" y="107" class="s">orders(id, item≤200,</text>
+  <text x="507" y="121" class="s">status, created_at)</text>
+  <text x="507" y="135" class="xs">idx(status) · idx(created_at)</text>
+  <text x="507" y="149" class="xs">pool 5+10 · pre-ping</text>
+  <text x="507" y="163" class="xs">seed.py · dumps for backup</text>
+  <text x="507" y="177" class="xs">fallback: SQLite file</text>
+  <rect x="425" y="200" width="165" height="116" class="box"/>
+  <text x="507" y="220" class="t">Redis 7</text>
+  <text x="507" y="235" class="s">cache (TTL 30s) + queue</text>
+  <text x="507" y="249" class="xs">AOF persist · PING health</text>
+  <text x="507" y="263" class="xs">fallback: in-memory</text>
+  <text x="507" y="277" class="xs">(per-process — needs</text>
+  <text x="507" y="291" class="xs">Redis across processes)</text>
+  <text x="507" y="305" class="xs">queue_depth gauge</text>
 
-  <!-- worker -->
-  <rect x="600" y="60" width="130" height="60" class="box" style="fill:#eef4ff"/>
-  <text x="665" y="85" class="t" fill="#111">worker</text>
-  <text x="665" y="102" class="s" fill="#555">drains queue</text>
+  <!-- ============ OBSERVABILITY (col D) ============ -->
+  <rect x="620" y="48" width="175" height="280" class="grp"/>
+  <text x="707" y="62" class="gt" text-anchor="middle">OBSERVE</text>
+  <rect x="630" y="72" width="155" height="132" class="box"/>
+  <text x="707" y="92" class="t">Prometheus :9090</text>
+  <text x="707" y="107" class="s">scrape 5s · 50 series</text>
+  <text x="707" y="121" class="xs">rules: 5xx&gt;5% (page)</text>
+  <text x="707" y="135" class="xs">p95&gt;500ms · queue&gt;50</text>
+  <text x="707" y="149" class="xs">db==0 (page)</text>
+  <text x="707" y="163" class="xs">JSON logs → stdout</text>
+  <text x="707" y="177" class="xs">OTEL opt-in (OTLP/console)</text>
+  <text x="707" y="191" class="xs">X-Request-ID tracing</text>
+  <rect x="630" y="214" width="155" height="102" class="box"/>
+  <text x="707" y="234" class="t">Grafana :3000</text>
+  <text x="707" y="249" class="s">provisioned datasource</text>
+  <text x="707" y="263" class="xs">RPS · err% · p50/p95/p99</text>
+  <text x="707" y="277" class="xs">queue · db · orders</text>
+  <text x="707" y="291" class="xs">home dashboard JSON</text>
+  <text x="707" y="305" class="xs">admin via env secret</text>
 
-  <!-- observability -->
-  <rect x="200" y="180" width="150" height="60" class="box3" style="fill:#fff8e6"/>
-  <text x="275" y="205" class="t" fill="#111">Prometheus</text>
-  <text x="275" y="222" class="s" fill="#555">alerts + Grafana</text>
+  <!-- ============ PLATFORM (col E) ============ -->
+  <rect x="815" y="48" width="170" height="470" class="grp"/>
+  <text x="900" y="62" class="gt" text-anchor="middle">PLATFORM</text>
+  <rect x="825" y="72" width="150" height="118" class="box"/>
+  <text x="900" y="92" class="t">kind k8s v1.31</text>
+  <text x="900" y="107" class="s">api ×2 · worker</text>
+  <text x="900" y="121" class="s">postgres · redis</text>
+  <text x="900" y="135" class="xs">probes · SA/Role · NetPol</text>
+  <text x="900" y="149" class="xs">IfNotPresent (local img)</text>
+  <text x="900" y="163" class="xs">kill-pod recovery ~14s</text>
+  <text x="900" y="177" class="xs">Compose mirror (6 svc)</text>
+  <rect x="825" y="200" width="150" height="118" class="box"/>
+  <text x="900" y="220" class="t">Go operator</text>
+  <text x="900" y="235" class="s">ProductionService CRD</text>
+  <text x="900" y="249" class="xs">image · replicas · rollback</text>
+  <text x="900" y="263" class="xs">reconcile: drift / scale /</text>
+  <text x="900" y="277" class="xs">rollback / no-flap hold</text>
+  <text x="900" y="291" class="xs">go test 5/5 · CRD on kind</text>
+  <text x="900" y="305" class="xs">manager wiring pending</text>
+  <rect x="825" y="328" width="150" height="80" class="shade"/>
+  <text x="900" y="348" class="t">model serving</text>
+  <text x="900" y="363" class="s">RTX 3070 Ti · :8100</text>
+  <text x="900" y="377" class="xs">75 RPS · CPU infer</text>
+  <text x="900" y="391" class="xs">5s telemetry cache</text>
+  <rect x="825" y="418" width="150" height="88" class="shade"/>
+  <text x="900" y="438" class="t">CI / supply chain</text>
+  <text x="900" y="453" class="xs">ruff → pytest (pg+redis)</text>
+  <text x="900" y="467" class="xs">pip-audit → docker build</text>
+  <text x="900" y="481" class="xs">browser E2E (Cr + Fx)</text>
+  <text x="900" y="495" class="xs">dependabot weekly</text>
 
-  <!-- engines -->
-  <rect x="20" y="180" width="130" height="60" class="box" style="fill:#eef4ff"/>
-  <text x="85" y="205" class="t" fill="#111">failurectl</text>
-  <text x="85" y="222" class="s" fill="#555">chaos CLI</text>
-  <rect x="20" y="260" width="130" height="60" class="box" style="fill:#eef4ff"/>
-  <text x="85" y="285" class="t" fill="#111">slo.py</text>
-  <text x="85" y="302" class="s" fill="#555">availability + p99</text>
-  <rect x="200" y="260" width="150" height="60" class="box" style="fill:#eef4ff"/>
-  <text x="275" y="285" class="t" fill="#111">policy remediate</text>
-  <text x="275" y="302" class="s" fill="#555">detect → fix → audit</text>
+  <!-- ============ FLOWS (ordered fan-in: no two lines cross on the left edge) ============ -->
+  <line x1="175" y1="95" x2="203" y2="100" class="ln" marker-end="url(#ar)"/>
+  <text x="189" y="88" class="lb">run</text>
+  <line x1="175" y1="149" x2="203" y2="125" class="ln" marker-end="url(#ar)"/>
+  <text x="189" y="140" class="lb">use</text>
+  <!-- ============ CONTROL BUS: trunk in the A|B gap, stubs join it, one arrow into API ============ -->
+  <line x1="190" y1="140" x2="190" y2="470" class="dl"/>
+  <line x1="186" y1="158" x2="204" y2="164" class="dl" marker-end="url(#ar)"/>
+  <line x1="165" y1="203" x2="190" y2="203" class="dl"/>
+  <text x="162" y="206" class="lb" text-anchor="end">chaos</text>
+  <line x1="165" y1="257" x2="190" y2="257" class="dl"/>
+  <text x="162" y="260" class="lb" text-anchor="end">kill/scale</text>
+  <line x1="165" y1="350" x2="190" y2="350" class="dl"/>
+  <text x="198" y="353" class="lb" text-anchor="start">traffic</text>
+  <line x1="165" y1="390" x2="190" y2="390" class="dl"/>
+  <text x="198" y="393" class="lb" text-anchor="start">route</text>
+  <line x1="165" y1="430" x2="190" y2="430" class="dl"/>
+  <text x="198" y="433" class="lb" text-anchor="start">evaluate</text>
+  <line x1="165" y1="470" x2="190" y2="470" class="dl"/>
+  <text x="198" y="473" class="lb" text-anchor="start">fix+audit</text>
+  <!-- API -> data -->
+  <line x1="395" y1="130" x2="423" y2="130" class="ln" marker-end="url(#ar)"/>
+  <text x="409" y="122" class="lb">SQL</text>
+  <line x1="395" y1="170" x2="423" y2="230" class="ln" marker-end="url(#ar)"/>
+  <text x="409" y="200" class="lb">cache/enqueue</text>
+  <!-- queue -> worker -->
+  <line x1="507" y1="318" x2="397" y2="282" class="ln" marker-end="url(#ar)"/>
+  <text x="448" y="316" class="lb">drain → done</text>
+  <!-- API -> prometheus -->
+  <line x1="385" y1="212" x2="628" y2="130" class="ln" marker-end="url(#ar)"/>
+  <text x="505" y="168" class="lb">/metrics scrape</text>
+  <line x1="707" y1="204" x2="707" y2="212" class="ln" marker-end="url(#ar)"/>
+  <text x="745" y="212" class="lb">feeds</text>
+  <!-- scheduler -> serving -->
+  <line x1="165" y1="422" x2="823" y2="368" class="dl" marker-end="url(#ar)"/>
+  <text x="490" y="412" class="lb">place cuda:0</text>
+  <!-- operator -> kind -->
+  <line x1="900" y1="318" x2="900" y2="192" class="ln" marker-end="url(#ar)"/>
+  <text x="948" y="260" class="lb">reconcile</text>
+  <!-- CI note -->
+  <line x1="900" y1="418" x2="900" y2="410" class="ln" marker-end="url(#ar)"/>
 
-  <!-- gpu -->
-  <rect x="400" y="220" width="150" height="60" class="box2" style="fill:#eefbf0"/>
-  <text x="475" y="245" class="t" fill="#111">model serving</text>
-  <text x="475" y="262" class="s" fill="#555">RTX 3070 Ti · 75 rps</text>
-
-  <!-- k8s -->
-  <rect x="600" y="220" width="130" height="60" class="box3" style="fill:#fff8e6"/>
-  <text x="665" y="245" class="t" fill="#111">kind / k8s</text>
-  <text x="665" y="262" class="s" fill="#555">+ Go operator</text>
-
-  <!-- arrows -->
-  <line x1="150" y1="90" x2="198" y2="90" class="ln"/>
-  <line x1="350" y1="80" x2="398" y2="70" class="ln"/>
-  <line x1="350" y1="100" x2="398" y2="130" class="ln"/>
-  <line x1="550" y1="130" x2="598" y2="100" class="ln"/>
-  <line x1="275" y1="120" x2="275" y2="178" class="ln"/>
-  <line x1="150" y1="210" x2="198" y2="210" class="ln"/>
-  <line x1="275" y1="90" x2="120" y2="178" class="ln"/>
-  <line x1="400" y1="90" x2="352" y2="200" class="ln"/>
-  <line x1="475" y1="155" x2="475" y2="218" class="ln"/>
-  <line x1="600" y1="90" x2="640" y2="218" class="ln"/>
-
-  <text x="430" y="350" class="s" fill="#555">API → DB + cache + queue → worker · metrics → Prometheus/Grafana · chaos → SLO → remediation</text>
+  <!-- footer -->
+  <text x="500" y="545" class="s">Solid = runtime traffic · Dashed = control/chaos loop · All thresholds in slo-engine/slos.yaml ↔ observability/prometheus-rules.yml (test-wired)</text>
+  <text x="500" y="563" class="s">Secrets via env only (.env.example) · non-root image · RBAC + NetworkPolicy · pip-audit in CI · 61/61 tests + go test 5/5</text>
+  <rect x="15" y="580" width="970" height="104" class="grp"/>
+  <text x="500" y="594" class="gt" text-anchor="middle">MEASURED EVIDENCE (NOT CLAIMS)</text>
+  <text x="250" y="612" class="s">API 194 RPS · p95 34ms · 100% avail (BENCHMARKS.md)</text>
+  <text x="750" y="612" class="s">pod-kill → rescheduled ~14s, traffic OK (kind)</text>
+  <text x="250" y="630" class="s">GPU infer 75 RPS · p50 15ms · 6× via telemetry cache</text>
+  <text x="750" y="630" class="s">DR drill PASS · 1034-row backup · RTO seconds</text>
+  <text x="250" y="648" class="s">SLO: 200rps log → 100% PASS vs 99.9 target</text>
+  <text x="750" y="648" class="s">audit: 10 found → 2 fixed · 8 residual (documented)</text>
+  <text x="500" y="668" class="s">reproduce: pytest -q · make bench · make k8s-chaos · go test ./... · python docs/capture.py</text>
 </svg>
