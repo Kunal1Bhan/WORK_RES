@@ -174,6 +174,8 @@ plus auto-generated Swagger at `/docs`.
 | Dashboard (desktop) | Dashboard (mobile, 390px, zero overflow) |
 |---|---|
 | ![dashboard](docs/screenshots/frontend/07-dashboard.png) | ![mobile](docs/screenshots/frontend/08-dashboard-mobile.png) |
+| Topology & deduction canvas | Shop dashboard |
+| ![topology](docs/screenshots/frontend/11-topology.png) | ![shop](docs/screenshots/frontend/09-shop-dashboard.png) |
 
 ![frontend demo](docs/demo/frontend-demo.gif)
 

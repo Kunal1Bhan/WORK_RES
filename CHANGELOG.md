@@ -4,6 +4,13 @@ All notable changes, newest first. Format: `Added / Fixed / Changed / Security`.
 
 ## [Unreleased]
 
+## Packet-Tracer-style topology + deduction
+- Added: rolling traffic signals + `GET /api/situation` (SLO verdicts,
+  recommendations, summary); `/topology` canvas with live discovery,
+  RPS-driven packet animation, click-to-inspect, deduction column.
+- Fixed: first-paint blocked ~4–8s by sequential unbounded probes → parallel
+  2s-timeout probes after the deduction paint (0.1s).
+
 ## Shop features (real usage, not a demo)
 - Added: product catalog (create/list/restock), orders with product+qty+promo
   (SAVE10/HALF), atomic stock decrement, 409 out-of-stock, cancel with stock

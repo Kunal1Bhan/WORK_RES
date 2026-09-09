@@ -31,6 +31,10 @@ the build order and `docs/PROJECT-REPORT.md` for evidence.
   [0,1]) + `failurectl` CLI + kubectl kill-pods/scale (dry-run supported).
 - **SLO** (`slo-engine/`): `slos.yaml` targets ↔ Prometheus rules (test-wired);
   offline evaluator: availability, p50/p95/p99, error budget, PASS/FAIL.
+- **Signals + situation** (`app/signals.py`, `GET /api/situation`): rolling
+  5-min window (≤2000 samples) of status+latency → availability, p50/p95, RPS;
+  live deduction vs SLOs (availability 99.9, p95 500ms, queue 50) with WARN on
+  active chaos, recommendations, and a one-paragraph summary.
 - **Remediation** (`remediation-engine/`): `policies.yaml`, first-match,
   cooldown + max-attempts safeguards, `audit.log`.
 - **Traffic** (`traffic-engine/`): weighted router, health refresh, 502 all-down.
@@ -53,6 +57,10 @@ Pool: size 5/overflow 10, `pool_pre_ping`. Seed: `scripts/seed.py`.
   writes via UI queue; busy-states; background stop on close.
 - `/dashboard` (single dependency-free HTML): live cards, order form, table,
   latency sparkline, chaos panel; XSS-escaped; responsive; ARIA labels.
+- `/topology` (Packet-Tracer-style canvas): live-discovered nodes (API, worker,
+  PG, Redis, Prometheus/Grafana/serving when reachable), RPS-driven packet
+  animation (red under errors/chaos), click-to-inspect, and a deduction column
+  rendering `/api/situation` (checks + recommendations + summary).
 - `/docs` (Swagger, third-party).
 
 ## §7 Deployment

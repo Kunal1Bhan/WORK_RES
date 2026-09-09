@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import cache as cache_mod
 from . import metrics as m
 from . import queue_ as q
+from . import signals as sig
 from . import telemetry as tel
 from .config import settings
 from .db import Order, Product, Event, get_session, init_db, log_event, PROMOS
@@ -102,6 +103,7 @@ async def _mw(request: Request, call_next):
     dur = time.time() - start
     m.REQUESTS.labels(request.method, request.url.path, str(resp.status_code)).inc()
     m.LATENCY.labels(request.url.path).observe(dur)
+    sig.record(resp.status_code, dur)
     resp.headers["X-Request-ID"] = rid
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
@@ -155,6 +157,10 @@ def live():
 
 @app.get("/ready")
 def ready():
+    return ready_body()
+
+
+def ready_body():
     try:
         s = get_session()
         try:
@@ -367,6 +373,75 @@ def events(limit: int = 15):
                        "kind": e.kind, "detail": e.detail} for e in rows]}
 
 
+@app.get("/api/situation")
+def situation():
+    """Deduction report: live signals vs SLOs + verdicts + recommendations."""
+    snap = sig.snapshot()
+    ready = ready_body()
+    chaos = {"latency_ms": INJECT["latency_ms"], "error_rate": INJECT["error_rate"]}
+    chaos_active = bool(chaos["latency_ms"] or chaos["error_rate"])
+    checks = []
+    recs = []
+
+    avail_ok = snap["availability_pct"] >= sig.SLO_AVAILABILITY
+    checks.append({"name": "availability", "value": snap["availability_pct"],
+                   "target": sig.SLO_AVAILABILITY, "unit": "%",
+                   "verdict": "PASS" if avail_ok else "FAIL"})
+    if not avail_ok:
+        recs.append("Availability below 99.9% — inspect 5xx sources, then remediate.")
+
+    p95_ok = snap["p95_ms"] <= sig.SLO_P95_MS
+    checks.append({"name": "latency_p95", "value": snap["p95_ms"],
+                   "target": sig.SLO_P95_MS, "unit": "ms",
+                   "verdict": "PASS" if p95_ok else "FAIL"})
+    if not p95_ok:
+        recs.append("p95 latency breaching 500ms — check DB/cache latency and injected delays.")
+
+    qd = ready["queue_depth"]
+    q_ok = qd <= sig.SLO_QUEUE_MAX
+    checks.append({"name": "queue_depth", "value": qd,
+                   "target": sig.SLO_QUEUE_MAX, "unit": "orders",
+                   "verdict": "PASS" if q_ok else "FAIL"})
+    if not q_ok:
+        recs.append("Queue backlog growing — scale workers (competing consumers).")
+
+    db_ok = ready["db"] == "up"
+    checks.append({"name": "database", "value": ready["db"], "target": "up",
+                   "unit": "", "verdict": "PASS" if db_ok else "FAIL"})
+    if not db_ok:
+        recs.append("Database unreachable — check Postgres container and DATABASE_URL.")
+
+    checks.append({"name": "chaos", "value": "active" if chaos_active else "clear",
+                   "target": "clear", "unit": "",
+                   "verdict": "WARN" if chaos_active else "PASS"})
+    if chaos_active:
+        recs.append(f"Failure injection ACTIVE {chaos} — clear with failurectl when done drilling.")
+
+    stats_body = stats()
+    if stats_body["low_stock"]:
+        names = ", ".join(p["name"] for p in stats_body["low_stock"])
+        checks.append({"name": "stock", "value": len(stats_body["low_stock"]),
+                       "target": 0, "unit": "low products", "verdict": "WARN"})
+        recs.append(f"Low stock: {names} — restock soon.")
+    else:
+        checks.append({"name": "stock", "value": 0, "target": 0,
+                       "unit": "low products", "verdict": "PASS"})
+
+    failing = sum(1 for c in checks if c["verdict"] == "FAIL")
+    warned = sum(1 for c in checks if c["verdict"] == "WARN")
+    if failing:
+        summary = f"ATTENTION: {failing} SLO check(s) failing, {warned} warning(s). {recs[0] if recs else ''}"
+    elif warned:
+        summary = f"Stable with {warned} warning(s). {recs[0] if recs else ''}"
+    else:
+        summary = (f"All systems nominal: {snap['availability_pct']}% availability, "
+                   f"p95 {snap['p95_ms']}ms, queue {qd}, revenue "
+                   f"${stats_body['revenue_cents']/100:.2f}.")
+    return {"traffic": snap, "chaos": chaos, "dependencies": ready,
+            "revenue_cents": stats_body["revenue_cents"],
+            "checks": checks, "recommendations": recs, "summary": summary}
+
+
 @app.post("/chaos")
 def set_chaos(body: dict):
     """Failure-injection hook (dev/lab). Disable in prod via CHAOS_ENABLED=0."""
@@ -410,7 +485,7 @@ def _note_event(kind, detail):
 @app.get("/")
 def root():
     return {"service": "reliability-lab", "docs": "/docs",
-            "dashboard": "/dashboard", "health": "/health"}
+            "dashboard": "/dashboard", "topology": "/topology", "health": "/health"}
 
 
 @app.get("/dashboard", response_class=FileResponse)
@@ -418,4 +493,12 @@ def dashboard():
     import os
     here = os.path.dirname(os.path.abspath(__file__))
     return FileResponse(os.path.join(here, "static", "dashboard.html"),
+                        media_type="text/html")
+
+
+@app.get("/topology", response_class=FileResponse)
+def topology():
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    return FileResponse(os.path.join(here, "static", "topology.html"),
                         media_type="text/html")
