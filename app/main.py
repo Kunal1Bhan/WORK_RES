@@ -20,7 +20,7 @@ from . import queue_ as q
 from . import signals as sig
 from . import telemetry as tel
 from .config import settings
-from .db import Order, Product, Event, get_session, init_db, log_event, PROMOS
+from .db import Order, Product, Event, Score, get_session, init_db, log_event, PROMOS
 
 LOW_STOCK_AT = 5
 
@@ -373,6 +373,41 @@ def events(limit: int = 15):
                        "kind": e.kind, "detail": e.detail} for e in rows]}
 
 
+class ScoreIn(BaseModel):
+    name: str = Field(default="op", max_length=20)
+    score: int = Field(ge=0, le=10_000_000)
+    lines: int = Field(ge=0, le=10000)
+    level: int = Field(ge=1, le=50)
+
+
+@app.get("/api/scores")
+def list_scores(limit: int = 10):
+    limit = max(1, min(limit, 50))
+    s = get_session()
+    try:
+        rows = (s.query(Score).order_by(Score.score.desc()).limit(limit).all())
+    finally:
+        s.close()
+    return {"items": [{"name": r.name, "score": r.score, "lines": r.lines,
+                       "level": r.level} for r in rows]}
+
+
+@app.post("/api/scores", status_code=201)
+def submit_score(body: ScoreIn):
+    name = (body.name or "op").strip()[:20] or "op"
+    s = get_session()
+    try:
+        row = Score(name=name, score=body.score, lines=body.lines,
+                    level=body.level)
+        s.add(row)
+        s.commit()
+        best = s.query(Score).order_by(Score.score.desc()).first()
+    finally:
+        s.close()
+    m.GAMES_PLAYED.inc()
+    return {"rank_top": best.score if best else body.score}
+
+
 @app.get("/api/situation")
 def situation():
     """Deduction report: live signals vs SLOs + verdicts + recommendations."""
@@ -501,4 +536,12 @@ def topology():
     import os
     here = os.path.dirname(os.path.abspath(__file__))
     return FileResponse(os.path.join(here, "static", "topology.html"),
+                        media_type="text/html")
+
+
+@app.get("/game", response_class=FileResponse)
+def game():
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    return FileResponse(os.path.join(here, "static", "game.html"),
                         media_type="text/html")

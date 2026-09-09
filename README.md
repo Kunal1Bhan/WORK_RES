@@ -179,9 +179,16 @@ plus auto-generated Swagger at `/docs`.
 
 ![frontend demo](docs/demo/frontend-demo.gif)
 
-*Real recording: fill order form → submit → toast + table update → chaos on/off.
-Console bugs fixed this pass: thread-safe widget updates, non-blocking close,
-busy-state on long runs. Details: [`docs/frontend/architecture.md`](docs/frontend/architecture.md).*
+*Real recording: fill order form → submit → toast + table update → chaos on/off.*
+
+## 🧱 Block Ops game
+
+Infra-themed falling blocks (API, DB, WORKER, CACHE, QUEUE, ROUTER, BALANCER):
+bag randomizer, hold, ghost, levels, combos, sound, persistent leaderboard
+(`scores` table) and a per-game **summary box** (score/lines/level/blocks/time
++ live lab situation line). Play at [`/game`](http://127.0.0.1:8000/game).
+
+![block ops](docs/screenshots/frontend/12-blockops.png)
 
 ---
 

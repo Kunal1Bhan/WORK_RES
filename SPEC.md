@@ -61,6 +61,9 @@ Pool: size 5/overflow 10, `pool_pre_ping`. Seed: `scripts/seed.py`.
   PG, Redis, Prometheus/Grafana/serving when reachable), RPS-driven packet
   animation (red under errors/chaos), click-to-inspect, and a deduction column
   rendering `/api/situation` (checks + recommendations + summary).
+- `/game` (Block Ops): infra-themed falling-block game (7 services, bag,
+  hold, ghost, levels, combos, sound); scores persisted (`scores` table) with
+  leaderboard; per-game summary box + live lab situation line.
 - `/docs` (Swagger, third-party).
 
 ## §7 Deployment

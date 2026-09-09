@@ -8,6 +8,7 @@ ORDERS_PROCESSED = Counter("lab_orders_processed_total", "Orders processed", ["r
 QUEUE_DEPTH = Gauge("lab_queue_depth", "Queue depth")
 REVENUE_CENTS = Gauge("lab_revenue_cents", "Revenue from done orders (cents)")
 LOW_STOCK = Gauge("lab_low_stock_products", "Products below stock threshold")
+GAMES_PLAYED = Counter("lab_games_played_total", "Block-game sessions finished")
 DB_UP = Gauge("lab_db_up", "DB reachable (1/0)")
 CACHE_HITS = Counter("lab_cache_hits_total", "Cache hits")
 CACHE_MISSES = Counter("lab_cache_misses_total", "Cache misses")

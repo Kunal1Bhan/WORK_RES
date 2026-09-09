@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliability Lab — Block Ops</title>
+<style>
+  :root { --bg:#0b1220; --panel:#131c31; --line:#263252; --txt:#e8eefc;
+          --mut:#93a1c0; --acc:#4f8cff; --ok:#34d399; --bad:#f87171; --warn:#fbbf24; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+         font-family:"Segoe UI",system-ui,sans-serif; }
+  header { padding:14px 24px; border-bottom:1px solid var(--line); background:var(--panel);
+           display:flex; align-items:center; gap:12px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:2px 0 0; color:var(--mut); font-size:13px; }
+  header a { color:var(--acc); }
+  .wrap { display:flex; gap:16px; justify-content:center; align-items:flex-start;
+          padding:18px; flex-wrap:wrap; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  canvas#board { background:#070c16; border:1px solid var(--line); border-radius:8px; display:block; }
+  .side { width:250px; display:flex; flex-direction:column; gap:12px; }
+  .card h2 { margin:0 0 8px; font-size:14px; }
+  .stat { display:flex; justify-content:space-between; font-size:14px; padding:3px 0; }
+  .stat b { font-size:16px; }
+  canvas.mini { background:#070c16; border:1px solid var(--line); border-radius:6px; }
+  #summary { font-size:13.5px; background:#1a2540; border:1px solid var(--line);
+             border-radius:10px; padding:10px 12px; min-height:60px; }
+  #scores { font-size:13px; }
+  #scores div { display:flex; justify-content:space-between; padding:3px 0;
+                border-bottom:1px solid var(--line); }
+  #overlay { position:fixed; inset:0; background:rgba(4,8,18,.78); display:none;
+             align-items:center; justify-content:center; z-index:10; }
+  #overlay.open { display:flex; }
+  #gameover-box { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+                  padding:26px 32px; text-align:center; max-width:420px; }
+  #gameover-box h2 { margin:0 0 6px; font-size:22px; }
+  #gameover-box p { color:var(--mut); }
+  input[type=text] { background:#1a2540; border:1px solid var(--line); color:var(--txt);
+    border-radius:8px; padding:9px 12px; font-size:15px; width:160px; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px;
+           padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+  button.ghost { background:#1a2540; border:1px solid var(--line); }
+  button:focus-visible, input:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+  .keys { font-size:12.5px; color:var(--mut); line-height:1.7; }
+  kbd { background:#1a2540; border:1px solid var(--line); border-radius:4px; padding:0 6px; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🧱 Block Ops</h1>
+  <p>ship infra blocks, clear lines, survive on-call — <a href="/dashboard">dashboard</a> · <a href="/topology">topology</a></p></div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <canvas id="board" width="300" height="600" aria-label="game board"></canvas>
+  </div>
+  <div class="side">
+    <div class="card"><h2>Summary</h2><div id="summary">Press <kbd>Enter</kbd> to start.</div></div>
+    <div class="card"><h2>Stats</h2>
+      <div class="stat"><span>Score</span><b id="s-score">0</b></div>
+      <div class="stat"><span>Lines</span><b id="s-lines">0</b></div>
+      <div class="stat"><span>Level</span><b id="s-level">1</b></div>
+      <div class="stat"><span>Blocks</span><b id="s-blocks">0</b></div>
+      <div class="stat"><span>Time</span><b id="s-time">0:00</b></div>
+    </div>
+    <div class="card"><h2>Hold <span style="color:var(--mut)">(C)</span></h2>
+      <canvas class="mini" id="hold" width="120" height="60"></canvas></div>
+    <div class="card"><h2>Next</h2>
+      <canvas class="mini" id="next" width="120" height="180"></canvas></div>
+    <div class="card"><h2>Top operators</h2><div id="scores">loading…</div></div>
+    <div class="card"><h2>Keys</h2><div class="keys">
+      <kbd>←→</kbd> move · <kbd>↓</kbd> soft drop · <kbd>↑</kbd>/<kbd>X</kbd> rotate ·
+      <kbd>Z</kbd> ccw · <kbd>Space</kbd> hard drop · <kbd>C</kbd> hold ·
+      <kbd>P</kbd> pause · <kbd>M</kbd> sound
+    </div></div>
+  </div>
+</div>
+<div id="overlay" role="dialog" aria-label="game over">
+  <div id="gameover-box">
+    <h2>📟 PagerDuty: GAME OVER</h2>
+    <p id="final-line"></p>
+    <div class="row" style="display:flex;gap:8px;justify-content:center">
+      <input type="text" id="op-name" maxlength="20" placeholder="callsign" aria-label="callsign">
+      <button id="save-score">Save score</button>
+      <button id="again" class="ghost">Again (R)</button>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const COLS = 10, ROWS = 20, CELL = 30;
+// pieces: infra services. shape matrices, colors, labels.
+const PIECES = [
+  { n:"API",     c:"#22d3ee", m:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },
+  { n:"DB",      c:"#facc15", m:[[1,1],[1,1]] },
+  { n:"WORKER",  c:"#c084fc", m:[[0,1,0],[1,1,1],[0,0,0]] },
+  { n:"CACHE",   c:"#34d399", m:[[0,1,1],[1,1,0],[0,0,0]] },
+  { n:"QUEUE",   c:"#f87171", m:[[1,1,0],[0,1,1],[0,0,0]] },
+  { n:"ROUTER",  c:"#60a5fa", m:[[1,0,0],[1,1,1],[0,0,0]] },
+  { n:"BALANCER",c:"#fb923c", m:[[0,0,1],[1,1,1],[0,0,0]] },
+];
+const GRAVITY = [800,720,630,550,470,380,300,220,150,100,70,50,30,20,15];
+const $ = id => document.getElementById(id);
+const board = $("board").getContext("2d");
+let grid, bag, cur, held, canHold, over, paused, muted = false;
+let score, lines, level, blocks, startT, lastTick, dropAcc, combo = -1, labNote = "";
+// --- audio: tiny bleeps ---
+let AC = null;
+function beep(f, ms=70) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = f; o.connect(g); g.connect(AC.destination);
+    g.gain.setValueAtTime(.08, AC.currentTime);
+    o.start(); o.stop(AC.currentTime + ms / 1000);
+  } catch (e) { /* audio unavailable: stay silent */ }
+}
+function refill() {
+  bag = [...PIECES.keys()];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+}
+function rotCW(m) {
+  const n = m.length;
+  return m[0].map((_, x) => m.map(row => row[n - 1 - x]));
+}
+function rot(m, dir) {
+  const cw = rotCW(m);
+  return dir < 0 ? rotCW(rotCW(cw)) : cw;
+}
+function spawn() {
+  if (!bag.length) refill();
+  const p = PIECES[bag.pop()];
+  cur = { p, m: p.m.map(r => [...r]), x: 3, y: 0 };
+  canHold = true;
+  if (collide(cur.m, cur.x, cur.y)) return gameOver();
+  blocks++;
+}
+function collide(m, px, py) {
+  for (let y = 0; y < m.length; y++) for (let x = 0; x < m[y].length; x++) {
+    if (!m[y][x]) continue;
+    const gx = px + x, gy = py + y;
+    if (gx < 0 || gx >= COLS || gy >= ROWS) return true;
+    if (gy >= 0 && grid[gy][gx]) return true;
+  }
+  return false;
+}
+function merge() {
+  for (let y = 0; y < cur.m.length; y++) for (let x = 0; x < cur.m[y].length; x++)
+    if (cur.m[y][x] && cur.y + y >= 0) grid[cur.y + y][cur.x + x] = cur.p.c;
+}
+function clearLines() {
+  let n = 0;
+  for (let y = ROWS - 1; y >= 0; y--) {
+    if (grid[y].every(Boolean)) { grid.splice(y, 1); grid.unshift(Array(COLS).fill(0)); n++; y++; }
+  }
+  return n;
+}
+function lock() {
+  merge();
+  const n = clearLines();
+  if (n) {
+    combo++;
+    score += [0, 100, 300, 500, 800][n] * level + (combo > 0 ? 50 * combo * level : 0);
+    lines += n;
+    level = 1 + Math.floor(lines / 10);
+    beep(520 + n * 120);
+  } else { combo = -1; beep(180, 40); }
+  spawn();
+  updateHud();
+}
+function step() {
+  if (!collide(cur.m, cur.x, cur.y + 1)) cur.y++;
+  else lock();
+}
+function hardDrop() {
+  let d = 0;
+  while (!collide(cur.m, cur.x, cur.y + 1)) { cur.y++; d++; }
+  score += d * 2;
+  beep(300, 50);
+  lock();
+}
+function tryRotate(dir) {
+  const m2 = rot(cur.m, dir);
+  for (const dx of [0, -1, 1, -2, 2]) {
+    if (!collide(m2, cur.x + dx, cur.y)) { cur.m = m2; cur.x += dx; return; }
+  }
+}
+function hold() {
+  if (!canHold) return;
+  canHold = false;
+  const tmp = held;
+  held = cur.p;
+  if (tmp) {
+    cur = { p: tmp, m: tmp.m.map(r => [...r]), x: 3, y: 0 };
+    if (collide(cur.m, cur.x, cur.y)) return gameOver();
+  } else spawn();
+  drawMini();
+}
+function cell3d(x, y, c) {
+  board.fillStyle = c;
+  board.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+  board.fillStyle = "rgba(255,255,255,.28)";
+  board.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, 5);
+  board.fillStyle = "rgba(0,0,0,.25)";
+  board.fillRect(x * CELL + 1, y * CELL + CELL - 6, CELL - 2, 4);
+}
+function draw() {
+  board.fillStyle = "#070c16";
+  board.fillRect(0, 0, board.canvas.width, board.canvas.height);
+  board.strokeStyle = "#16203a";
+  for (let x = 1; x < COLS; x++) {
+    board.beginPath(); board.moveTo(x * CELL, 0); board.lineTo(x * CELL, ROWS * CELL); board.stroke();
+  }
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
+    if (grid[y][x]) cell3d(x, y, grid[y][x]);
+  // ghost
+  let gy = cur.y;
+  while (!collide(cur.m, cur.x, gy + 1)) gy++;
+  board.globalAlpha = .22;
+  for (let y = 0; y < cur.m.length; y++) for (let x = 0; x < cur.m[y].length; x++)
+    if (cur.m[y][x] && gy + y >= 0) cell3d(cur.x + x, gy + y, cur.p.c);
+  board.globalAlpha = 1;
+  for (let y = 0; y < cur.m.length; y++) for (let x = 0; x < cur.m[y].length; x++)
+    if (cur.m[y][x] && cur.y + y >= 0) {
+      cell3d(cur.x + x, cur.y + y, cur.p.c);
+      board.fillStyle = "#04070f";
+      board.font = "bold 9px sans-serif";
+      board.textAlign = "center";
+      board.fillText(cur.p.n[0], (cur.x + x) * CELL + CELL / 2, (cur.y + y) * CELL + 19);
+    }
+  board.fillStyle = "#93a1c0";
+  board.font = "11px sans-serif";
+  board.textAlign = "left";
+  board.fillText(cur.p.n + (paused ? " · PAUSED" : ""), 6, ROWS * CELL - 8);
+}
+function drawMini() {
+  const paint = (id, list) => {
+    const c = $(id).getContext("2d");
+    c.fillStyle = "#070c16";
+    c.fillRect(0, 0, $(id).width, $(id).height);
+    list.forEach((p, i) => {
+      const s = 13, ox = 8, oy = 6 + i * 56;
+      p.m.forEach((row, y) => row.forEach((v, x) => {
+        if (!v) return;
+        c.fillStyle = p.c;
+        c.fillRect(ox + x * s, oy + y * s, s - 1, s - 1);
+      }));
+      c.fillStyle = "#93a1c0"; c.font = "9px sans-serif";
+      c.fillText(p.n, ox, oy + 3 * s + 10);
+    });
+  };
+  paint("hold", held ? [held] : []);
+  paint("next", bag.slice(-3).reverse().map(i => PIECES[i]));
+}
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+function updateHud() {
+  $("s-score").textContent = score;
+  $("s-lines").textContent = lines;
+  $("s-level").textContent = level;
+  $("s-blocks").textContent = blocks;
+  const el = lines + score + level + blocks;
+  $("summary").innerHTML =
+    `Score <b>${score}</b> · lines <b>${lines}</b> · level <b>${level}</b> · ` +
+    `blocks <b>${blocks}</b> · ${fmtTime(performance.now() - startT)}<br>` +
+    `<span style="color:var(--mut)">${labNote}</span>`;
+  drawMini();
+}
+async function refreshLabNote() {
+  try {
+    const s = await fetch("/api/situation").then(r => r.json());
+    labNote = "Lab now: " + s.summary;
+  } catch (e) { labNote = "Lab offline — blocks still fall."; }
+}
+function loop(t) {
+  if (over || paused) { lastTick = t; requestAnimationFrame(loop); return; }
+  if (!lastTick) lastTick = t;
+  const dt = t - lastTick;
+  lastTick = t;
+  $("s-time").textContent = fmtTime(performance.now() - startT);
+  dropAcc += dt;
+  const interval = GRAVITY[Math.min(level - 1, GRAVITY.length - 1)];
+  while (dropAcc >= interval) { dropAcc -= interval; step(); if (over) return; }
+  draw();
+  requestAnimationFrame(loop);
+}
+function newGame() {
+  grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  bag = []; held = null; over = false; paused = false;
+  score = 0; lines = 0; level = 1; blocks = 0; combo = -1; dropAcc = 0;
+  startT = performance.now(); lastTick = 0;
+  $("overlay").classList.remove("open");
+  spawn(); updateHud(); refreshLabNote();
+}
+function gameOver() {
+  over = true;
+  beep(110, 300);
+  const mins = fmtTime(performance.now() - startT);
+  $("final-line").textContent =
+    `Score ${score} · ${lines} lines · level ${level} · ${blocks} blocks in ${mins}.`;
+  $("summary").innerHTML =
+    `<b>GAME OVER.</b> Final: score <b>${score}</b> · lines <b>${lines}</b> · ` +
+    `level <b>${level}</b> · blocks <b>${blocks}</b> · ${mins}<br>` +
+    `<span style="color:var(--mut)">${labNote}</span>`;
+  $("overlay").classList.add("open");
+  setTimeout(() => $("op-name").focus(), 100);
+}
+async function saveScore() {
+  const name = ($("op-name").value || "op").slice(0, 20);
+  await fetch("/api/scores", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, score, lines, level }) });
+  loadScores();
+}
+async function loadScores() {
+  try {
+    const d = await fetch("/api/scores?limit=8").then(r => r.json());
+    $("scores").innerHTML = d.items.length ? d.items.map((s, i) =>
+      `<div><span>${i + 1}. ${s.name.replace(/[<>&]/g, "")}</span><b>${s.score}</b></div>`).join("")
+      : "No scores yet — be the first.";
+  } catch (e) { $("scores").textContent = "offline"; }
+}
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") {
+    if (e.key === "Enter" && document.activeElement === $("op-name")) saveScore();
+    return;
+  }
+  if (over) {
+    if (e.key === "Enter" || e.key.toLowerCase() === "r") newGame();
+    return;
+  }
+  switch (e.key) {
+    case "ArrowLeft": cur.x -= collide(cur.m, cur.x - 1, cur.y) ? 0 : 1; e.preventDefault(); break;
+    case "ArrowRight": cur.x += collide(cur.m, cur.x + 1, cur.y) ? 0 : 1; e.preventDefault(); break;
+    case "ArrowDown": step(); score += 1; e.preventDefault(); break;
+    case "ArrowUp": case "x": case "X": tryRotate(1); break;
+    case "z": case "Z": tryRotate(-1); break;
+    case " ": hardDrop(); e.preventDefault(); break;
+    case "c": case "C": hold(); break;
+    case "p": case "P": paused = !paused; draw(); break;
+    case "m": case "M": muted = !muted; break;
+    case "Enter": if (!startT) newGame(); break;
+  }
+  draw();
+});
+$("save-score").onclick = saveScore;
+$("again").onclick = newGame;
+loadScores();
+newGame();
+requestAnimationFrame(loop);
+setInterval(loadScores, 10000);
+setInterval(refreshLabNote, 15000);
+// QA hook (only with ?debug=1): exposes the REAL board + clear routine
+// so automated tests can verify line clears against live game code.
+if (location.search.includes("debug")) {
+  window.__game = {
+    get grid() { return grid; },
+    set grid(g) { grid = g; },
+    clear: clearLines,
+    get score() { return score; },
+  };
+}
+</script>
+</body>
+</html>

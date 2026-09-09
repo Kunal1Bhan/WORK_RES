@@ -47,6 +47,16 @@ class Event(Base):
     detail = Column(String(500), nullable=False, default="")
 
 
+class Score(Base):
+    __tablename__ = "scores"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(20), nullable=False, default="op")
+    score = Column(Integer, nullable=False, default=0)
+    lines = Column(Integer, nullable=False, default=0)
+    level = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 # Promo codes (real-shop feature): code -> discount fraction.
 PROMOS = {"SAVE10": 0.10, "HALF": 0.50}
 

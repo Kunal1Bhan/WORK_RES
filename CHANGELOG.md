@@ -4,6 +4,13 @@ All notable changes, newest first. Format: `Added / Fixed / Changed / Security`.
 
 ## [Unreleased]
 
+## Block Ops game
+- Added: `/game` — full falling-block game (7-bag, hold, ghost, levels,
+  combos, sound, game-over flow), `scores` table + leaderboard API,
+  `lab_games_played_total` metric, per-game summary box with lab situation.
+- Verified: real browser playtests (mechanics, line-clear via debug hook,
+  save→leaderboard), zero console errors.
+
 ## Packet-Tracer-style topology + deduction
 - Added: rolling traffic signals + `GET /api/situation` (SLO verdicts,
   recommendations, summary); `/topology` canvas with live discovery,
