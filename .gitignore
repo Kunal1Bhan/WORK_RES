@@ -20,3 +20,7 @@ dr-engine/drill-out/
 dr-engine/drill-out-gui/
 remediation-engine/.policy-state.json
 remediation-engine/audit.log
+
+# Generated (rebuild via scripts)
+.vite/
+COMPLIANCE-SNAPSHOT.md
