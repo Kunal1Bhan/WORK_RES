@@ -1,0 +1,9 @@
+apiVersion: lab.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: error-burn-nightly
+spec:
+  scenario: error
+  params: {rate: 0.3, durationSeconds: 60}
+  schedule: "0 2 * * *"
+  rollbackOnError: true

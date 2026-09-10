@@ -9,7 +9,8 @@ LAB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if LAB_DIR not in sys.path:
     sys.path.insert(0, LAB_DIR)
 for p in ("slo-engine", "failure-engine", "remediation-engine", "traffic-engine",
-          "dr-engine", "gpu-scheduler", "model-serving", "benchmarks"):
+          "dr-engine", "gpu-scheduler", "model-serving", "benchmarks",
+          "reliability-engine", "plugins"):
     full = os.path.join(LAB_DIR, p)
     if full not in sys.path:
         sys.path.append(full)

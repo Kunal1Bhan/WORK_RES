@@ -16,3 +16,10 @@ policies:
     action: page
     cooldown_seconds: 300
     max_attempts: 1
+  # FR12 node-loss survival (SIMULATED): NODE_LOSS_PCT env/file signal.
+  # Real clusters should feed actual node-not-ready ratio here.
+  - name: node-loss-page
+    when: {metric: node_loss_pct, op: ">=", value: 30}
+    action: page
+    cooldown_seconds: 300
+    max_attempts: 1

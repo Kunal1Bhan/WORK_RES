@@ -1,0 +1,4 @@
+# Scheduled reliability runs (FR11). Intervals in seconds.
+jobs:
+  - file: error-burn.yaml
+    every_seconds: 86400

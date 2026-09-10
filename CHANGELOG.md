@@ -4,6 +4,15 @@ All notable changes, newest first. Format: `Added / Fixed / Changed / Security`.
 
 ## [Unreleased]
 
+## PRD plan implementation
+- Added: YAML experiment builder/runner (`experiments/`, FR2), teams RBAC
+  (`teams.example.yaml`, member/admin, FR13), plugin loader + sample (FR15),
+  ChaosExperiment CRD (FR10), job scheduler (FR11), node-loss policy on
+  simulated signal (FR12), compliance snapshot script — all PASS (FR14).
+- Added: React+Vite dashboard (`web/`) served at `/app` when built, with
+  dev proxy, build verified, live browser check, CI web job.
+- PRD appendix updated: FR2/FR10/FR11/FR12/FR13/FR14/FR15 now done.
+
 ## Block Ops game
 - Added: `/game` — full falling-block game (7-bag, hold, ghost, levels,
   combos, sound, game-over flow), `scores` table + leaderboard API,

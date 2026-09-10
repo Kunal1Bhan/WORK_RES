@@ -171,18 +171,24 @@ Two user surfaces, no framework: the **tkinter desktop console** (one-click
 (dark theme, live cards, order form, latency sparkline, chaos panel),
 plus auto-generated Swagger at `/docs`.
 
+**React dashboard** (`web/`, Vite): situation cards, checks, orders,
+products, leaderboard — live from the same API. Dev: `cd web && npm install
+&& npm run dev` (proxies to :8000). Production: `npm run build`, served at
+`/app` by the API when `web/dist` exists.
+
 | Dashboard (desktop) | Dashboard (mobile, 390px, zero overflow) |
 |---|---|
 | ![dashboard](docs/screenshots/frontend/07-dashboard.png) | ![mobile](docs/screenshots/frontend/08-dashboard-mobile.png) |
 | Topology & deduction canvas | Shop dashboard |
 | ![topology](docs/screenshots/frontend/11-topology.png) | ![shop](docs/screenshots/frontend/09-shop-dashboard.png) |
+| React dashboard (Vite, served at `/app`) | Block Ops game |
+| ![react](docs/screenshots/frontend/13-react.png) | ![game](docs/screenshots/frontend/12-blockops.png) |
 
 ![frontend demo](docs/demo/frontend-demo.gif)
 
 *Real recording: fill order form → submit → toast + table update → chaos on/off.*
 
 ## 🧱 Block Ops game
-
 Infra-themed falling blocks (API, DB, WORKER, CACHE, QUEUE, ROUTER, BALANCER):
 bag randomizer, hold, ghost, levels, combos, sound, persistent leaderboard
 (`scores` table) and a per-game **summary box** (score/lines/level/blocks/time

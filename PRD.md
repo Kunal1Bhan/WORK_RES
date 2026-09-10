@@ -99,7 +99,7 @@ Reliability-as-a-Service. Commercial support.
 | FR | Status in repo | Evidence |
 |---|---|---|
 | FR1 Predefined chaos | ✅ Done | `failurectl` (latency/error/cpu) + k8s kill-pods/scale, pod-kill recovery measured on kind |
-| FR2 Custom builder | 🟡 Partial | `/chaos` hook + policies YAML; no YAML experiment-builder UI yet |
+| FR2 Custom builder | ✅ Done | `experiments/*.yaml` + `experiment.py` runner (chaos/wait/order/assert/plugin), JSON reports, 3 tests |
 | FR3 Rollback validation | ✅ Done (app) | Go reconcile rollback + no-flap hold, `go test` 5/5; rollout rollback in k8s pending |
 | FR4 SLO definitions | ✅ Done | `slos.yaml` ↔ Prometheus rules, test-wired |
 | FR5 Dashboards + alerts | ✅ Done | Grafana dashboard, 4 alert rules, `/dashboard`, `/topology` deduction |
@@ -107,14 +107,14 @@ Reliability-as-a-Service. Commercial support.
 | FR7 GPU scheduling | ✅ Done (single host) | nvidia-smi placement on RTX 3070 Ti; no cluster scheduler |
 | FR8 ML fault injection | 🟡 Partial | chaos knobs affect API; inference-pipeline faults not isolated |
 | FR9 Autoscaling stress | 🟡 Partial | load generator to 194 RPS; no autoscaler |
-| FR10 Chaos CRDs | 🟡 Partial | `ProductionService` CRD exists; chaos-specific CRDs pending |
-| FR11 Scheduled tests | ❌ Roadmap | no scheduler/cron integration yet |
-| FR12 Policy enforcement | 🟡 Partial | remediation policies with safeguards; no node-loss policies |
-| FR13 RBAC/teams | 🟡 Partial | k8s RBAC + API-key gate; no team management |
-| FR14 Audit/compliance | ✅ Done (audit) | `audit.log`, activity feed, drill reports; no compliance templates |
-| FR15 Plugins | ❌ Roadmap | modular engines, no plugin loader yet |
+| FR10 Chaos CRDs | ✅ Done | `ChaosExperiment` CRD + scheduled sample (scenario/params/schedule/rollback) |
+| FR11 Scheduled tests | ✅ Done | `reliability-engine/schedule.py` (interval jobs, state, JSONL runs) + `schedule.yaml` |
+| FR12 Policy enforcement | ✅ Done (simulated) | node-loss policy (30% page) on `NODE_LOSS_PCT` signal; real node feed pending |
+| FR13 RBAC/teams | ✅ Done (lab scale) | `teams.yaml` keys→team/role; members orders-only, admins chaos; tests |
+| FR14 Audit/compliance | ✅ Done | `audit.log`, activity feed, drill reports, `scripts/compliance.py` snapshot (all PASS) |
+| FR15 Plugins | ✅ Done | `plugins/` loader (register/run), sample `latency_spike`, experiment integration |
 
-**Architecture deltas vs §6:** frontend is tkinter + API-served pages (no
-React — deliberate, zero-dep); metrics in Prometheus (no TimescaleDB); no
-ArgoCD/multi-cloud (no cloud credentials). See `docs/PROJECT-REPORT.md` for
-the honest gap list.
+**Architecture deltas vs §6:** frontend is React (`web/`, Vite, served at
+`/app` when built) PLUS tkinter console and API-served pages; metrics in
+Prometheus (no TimescaleDB); no ArgoCD/multi-cloud (no cloud credentials).
+See `docs/PROJECT-REPORT.md` for the honest gap list.

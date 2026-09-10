@@ -49,6 +49,7 @@ class Settings:
     DATABASE_URL = _get("DATABASE_URL", "sqlite:///./lab.db")
     REDIS_URL = _get("REDIS_URL", "")
     API_KEY = _get("API_KEY", "")  # empty = auth disabled (local dev)
+    TEAMS_FILE = _get("LAB_TEAMS_FILE", "")
     CHAOS_ENABLED = _get_bool("CHAOS_ENABLED", True)
     RATE_LIMIT_RPS = _get_float("RATE_LIMIT_RPS", 0)  # 0 = disabled
     RATE_LIMIT_BURST = _get_int("RATE_LIMIT_BURST", 50)
@@ -60,3 +61,26 @@ class Settings:
 
 
 settings = Settings()
+
+
+_teams_cache = {"mtime": 0, "data": {}}
+
+
+def load_teams():
+    """Return {key: {team, role}}. Empty = teams disabled. Cached by mtime."""
+    import yaml as _yaml
+    path = settings.TEAMS_FILE
+    if not path or not os.path.exists(path):
+        return {}
+    try:
+        mtime = os.path.getmtime(path)
+        if mtime == _teams_cache["mtime"]:
+            return _teams_cache["data"]
+        with open(path) as f:
+            data = _yaml.safe_load(f) or {}
+        out = {t["key"]: {"team": t.get("team", "?"), "role": t.get("role", "member")}
+               for t in data.get("teams", []) if t.get("key")}
+        _teams_cache.update(mtime=mtime, data=out)
+        return out
+    except Exception:
+        return {}

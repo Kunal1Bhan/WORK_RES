@@ -1,0 +1,26 @@
+:root { --bg:#0b1220; --panel:#131c31; --line:#263252; --txt:#e8eefc;
+  --mut:#93a1c0; --acc:#4f8cff; --ok:#34d399; --bad:#f87171; --warn:#fbbf24; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--txt);
+  font-family:"Segoe UI",system-ui,sans-serif; }
+header { padding:16px 24px; border-bottom:1px solid var(--line); background:var(--panel); }
+header h1 { margin:0; font-size:20px; }
+header p { margin:2px 0 0; color:var(--mut); font-size:13px; }
+main { max-width:1100px; margin:0 auto; padding:20px 24px 40px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:18px; }
+.card h2 { margin:0 0 10px; font-size:15px; }
+.card h3 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); }
+.big { font-size:28px; font-weight:700; }
+.sub { color:var(--mut); font-size:13px; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); }
+th { color:var(--mut); font-size:12px; text-transform:uppercase; }
+.pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+.PASS { background:rgba(52,211,153,.15); color:var(--ok); }
+.FAIL { background:rgba(248,113,113,.15); color:var(--bad); }
+.WARN { background:rgba(251,191,36,.15); color:var(--warn); }
+.pending { background:rgba(251,191,36,.15); color:var(--warn); }
+.done { background:rgba(52,211,153,.15); color:var(--ok); }
+.cancelled { background:rgba(147,161,192,.15); color:var(--mut); }
+.err { color:var(--bad); }

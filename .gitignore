@@ -10,6 +10,9 @@ __pycache__/
 # Local runtime artifacts
 *.db
 *.db-journal
+# Web build (rebuilt via `npm run build` in web/)
+web/dist/
+web/node_modules/
 *.jsonl
 !benchmarks/sample-requests.jsonl
 benchmarks/results-*.jsonl

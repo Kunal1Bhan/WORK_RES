@@ -1,0 +1,8 @@
+# Teams & roles (FR13). When this file is non-empty (or API_KEY is set),
+# /api/* needs any valid key and /chaos needs role admin.
+# Keep real keys OUT of git — copy to teams.local.yaml? No: this file is an
+# EXAMPLE. Set LAB_TEAMS_FILE to load real teams, or use API_KEY env.
+teams: []
+# - key: "REPLACE-ME"
+#   team: alpha
+#   role: admin

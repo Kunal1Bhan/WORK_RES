@@ -133,12 +133,25 @@ def _rate_ok(ip):
 
 @app.middleware("http")
 async def _guard_mw(request: Request, call_next):
+    from .config import load_teams
     path = request.url.path
-    needs_key = settings.API_KEY and (
-        path.startswith("/api/") or path == "/chaos")
-    if needs_key and request.headers.get("X-API-Key") != settings.API_KEY:
-        m.REQUESTS.labels(request.method, path, "401").inc()
-        return err("unauthorized", "valid X-API-Key required", 401)
+    teams = load_teams()
+    auth_on = bool(settings.API_KEY or teams)
+    role = None
+    if auth_on:
+        key = request.headers.get("X-API-Key", "")
+        if key == settings.API_KEY and settings.API_KEY:
+            role = "admin"
+        elif key in teams:
+            role = teams[key]["role"]
+            request.state.team = teams[key]["team"]
+        needs_key = path.startswith("/api/") or path == "/chaos"
+        if needs_key and role is None:
+            m.REQUESTS.labels(request.method, path, "401").inc()
+            return err("unauthorized", "valid X-API-Key required", 401)
+        if path == "/chaos" and role != "admin":
+            m.REQUESTS.labels(request.method, path, "403").inc()
+            return err("forbidden", "chaos requires admin role", 403)
     if not _rate_ok(request.client.host if request.client else "?"):
         m.REQUESTS.labels(request.method, path, "429").inc()
         return err("rate_limited", "too many requests", 429)
@@ -545,3 +558,35 @@ def game():
     here = os.path.dirname(os.path.abspath(__file__))
     return FileResponse(os.path.join(here, "static", "game.html"),
                         media_type="text/html")
+
+
+def _web_dist():
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    d = os.path.join(here, "..", "web", "dist")
+    idx = os.path.join(d, "index.html")
+    return d if os.path.exists(idx) else None
+
+
+@app.get("/app")
+def webapp():
+    """React dashboard (built). Run `npm run build` in web/ first;
+    falls back to /dashboard when no build is present."""
+    import os
+    d = _web_dist()
+    if d is None:
+        return err("not_found",
+                   "web build not present — run `npm run build` in web/", 404)
+    return FileResponse(os.path.join(d, "index.html"), media_type="text/html")
+
+
+@app.get("/app/{path:path}")
+def webapp_assets(path: str):
+    import os
+    d = _web_dist()
+    if d is None:
+        return err("not_found", "web build not present", 404)
+    full = os.path.normpath(os.path.join(d, path))
+    if not full.startswith(os.path.abspath(d)) or not os.path.isfile(full):
+        return err("not_found", "asset not found", 404)
+    return FileResponse(full)

@@ -32,7 +32,13 @@ def _get(url):
 
 
 def fetch_signals(api, prom):
-    signals = {"error_rate_2m": 0.0, "queue_depth": 0, "db_up": 1}
+    signals = {"error_rate_2m": 0.0, "queue_depth": 0, "db_up": 1,
+               "node_loss_pct": 0.0}
+    try:
+        nl = float(os.getenv("NODE_LOSS_PCT", "0"))
+        signals["node_loss_pct"] = nl
+    except ValueError:
+        pass
     try:
         ready = json.loads(_get(api + "/ready"))
         signals["queue_depth"] = ready.get("queue_depth", 0)

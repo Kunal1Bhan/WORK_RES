@@ -1,0 +1,19 @@
+# Error-budget burn drill: prove chaos is detected, then prove recovery.
+name: error-budget-burn
+stop_on_fail: true
+steps:
+  - action: chaos
+    latency_ms: 0
+    error_rate: 1.0
+  - action: order
+    item: victim-order
+    expect: 500
+  - action: assert
+    check: availability
+    verdict: FAIL
+  - action: chaos
+    latency_ms: 0
+    error_rate: 0.0
+  - action: order
+    item: recovered-order
+    expect: 201
